@@ -8,8 +8,16 @@ function createShader(gl, stage, source)
     if (success) {
       return shader;
     }
-   
-    alert(gl.getShaderInfoLog(shader));
+
+    var log = gl.getShaderInfoLog(shader);
+
+    var lines = source.split('\n')
+
+    var error = log.split(':')
+
+    var line = error[2];
+    
+    alert(log + "\n" + lines[line]);
     gl.deleteShader(shader);
 }
 

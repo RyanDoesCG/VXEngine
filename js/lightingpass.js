@@ -208,14 +208,14 @@ var LightingPassFragmentShaderFooterSource = `
         Hit hit;
         hit.t = 100000.0;
 
-        float boxSize = 512.0;
+        float boxSize = 32.0;
 
         Hit result;
         result.t = BIG_NUMBER;
         result = IntersectRayBox(primary, Box(
-            vec3(0.0, 6.0, 0.0),
+            vec3(0.0, 0.0, 0.0),
             vec3(1.0, 0.0, 1.0),
-            vec3(boxSize, 24.0, boxSize)), result);
+            vec3(boxSize, boxSize, boxSize)), result);
             
         if (result.t < BIG_NUMBER)
         {

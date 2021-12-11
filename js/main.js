@@ -19,27 +19,19 @@
     let RIGHT = vec4(1.0, 0.0, 0.0, 0.0);
     let UP = vec4(0.0, 1.0, 0.0, 0.0);
 
-    let MAX_RASTER_PRIMITIVES_PER_BATCH = 400
-    let MAX_RT_PRIMITIVES = 256
-
     // SHADERS
-    basePassVertexShaderSource = basePassVertexShaderSource
-        .replaceAll("*MAX_RASTER_PRIMITIVES_PER_BATCH*", MAX_RASTER_PRIMITIVES_PER_BATCH.toString())
-    basePassFragmentShaderSource = basePassFragmentShaderSource
-        .replaceAll("*MAX_RASTER_PRIMITIVES_PER_BATCH*", MAX_RASTER_PRIMITIVES_PER_BATCH.toString())
-    LightingPassFragmentShaderHeaderSource = LightingPassFragmentShaderHeaderSource
-        .replaceAll("*MAX_RT_PRIMITIVES*", MAX_RT_PRIMITIVES.toString())
-
     console.log(basePassVertexShaderSource)
     var basePassShaderProgram  = createProgram (gl, 
         createShader  (gl, gl.VERTEX_SHADER,   basePassVertexShaderSource), 
         createShader  (gl, gl.FRAGMENT_SHADER, basePassFragmentShaderSource));
 
+/*
     var LightingPassShaderProgram  = createProgram (gl, 
         createShader  (gl, gl.VERTEX_SHADER, LightingPassVertexShaderSource), 
         createShader  (gl, gl.FRAGMENT_SHADER, 
             LightingPassFragmentShaderHeaderSource +
             LightingPassFragmentShaderFooterSource));
+*/
 
     var TAAPassShaderProgram = createProgram(gl,
         createShader(gl, gl.VERTEX_SHADER, TAAPassVertexShaderSource),
@@ -141,7 +133,6 @@
         gl.RENDERBUFFER, 
         worldposRenderBuffer);
     
-        
     let NumHistorySamples = 15;
     var LightingBuffers = [NumHistorySamples]
     for (var i = 0; i < NumHistorySamples; ++i)
@@ -168,15 +159,17 @@
     var WorldTexture 
 
     // UNIFORMS
-    var basePassTranslationLocation = gl.getUniformLocation(basePassShaderProgram, "translations")
-    var basePassScaleLocation = gl.getUniformLocation(basePassShaderProgram, "scales")
+    var basePassTransformLocation = gl.getUniformLocation(basePassShaderProgram, "transform")
     var basePassViewMatrixLocation = gl.getUniformLocation(basePassShaderProgram, "view");
     var basePassProjMatrixLocation = gl.getUniformLocation(basePassShaderProgram, "proj")
     var basePassWindowSizeLocation = gl.getUniformLocation(basePassShaderProgram, "WindowSize")
     var basePassTimeUniform = gl.getUniformLocation(basePassShaderProgram, "Time")
-    var basePassColorUniform = gl.getUniformLocation(basePassShaderProgram, "Color")
     var basePassJitterUniform = gl.getUniformLocation(basePassShaderProgram, "ShouldJitter")
 
+    var basePassCameraPositionUniform = gl.getUniformLocation(basePassShaderProgram, "CameraPosition")
+    var basePassVolumePositionUniform = gl.getUniformLocation(basePassShaderProgram, "VolumePosition")
+    var basePassVolumeSizeUniform = gl.getUniformLocation(basePassShaderProgram, "VolumeSize")
+/*
     var LightingPassProjectionUniform = gl.getUniformLocation(LightingPassShaderProgram, "projection")
     var LightingPassViewUniform = gl.getUniformLocation(LightingPassShaderProgram, "view");
     var LightingPassNearUniform = gl.getUniformLocation(LightingPassShaderProgram, "near")
@@ -205,7 +198,7 @@
     var LightingPassViewToWorldUniform = gl.getUniformLocation(LightingPassShaderProgram, "ViewToWorld");
     var LightingPassWorldToViewUniform = gl.getUniformLocation(LightingPassShaderProgram, "WorldToView")
     var LightingPassShadingModeUniform = gl.getUniformLocation(LightingPassShaderProgram, "ShadingMode")
-
+*/
     var TAAPassWorldPositionBufferSampler = gl.getUniformLocation(TAAPassShaderProgram, "WorldPositionBuffer")
     var TAAPassDepthBufferSampler = gl.getUniformLocation(TAAPassShaderProgram, "DepthBuffer")
     var TAAPassFrameBufferSamplers = gl.getUniformLocation(TAAPassShaderProgram, "Frames")
@@ -272,356 +265,22 @@
     gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(2);
 
-    var sphereGeometryVertexArray = gl.createVertexArray();
-    gl.bindVertexArray(sphereGeometryVertexArray);
-
-    var sphereGeometryPositionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, sphereGeometryPositionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, sphereGeometryPositions, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(0);
-
-    var sphereGeometryNormalBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, sphereGeometryNormalBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, sphereGeometryNormals, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(1);
-
-    var sphereGeometryUVBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, sphereGeometryUVBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, sphereGeometryUVs, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(2)
-
     // SCENE
-    var BoxPositions = []
-    var BoxColours = []
-    var BoxSizes = []
+    var Volume
+    var VolumePosition = [ 0.0, 0.0, 0.0 ]
+    var VolumeSize = [ 8.0, 8.0, 8.0]
 
-    var SpherePositions = []
-    var SphereColours = []
-    var SphereSizes = []
-
-    var Culled = 0
-
-    var World = [
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
-        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-        1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    ];
-
-    function LoadWorld()
-    {
-        WorldTexture = createBitmapTexture(gl, World)
-    }
-
-    // once on startup
     function BuildScene()
     {
-        /*
-        let size = Math.sqrt(World.length);
-        for (var x = 0; x < size; ++x)
-        {
-            for (var z = 0; z < size; ++z)
-            {
-                if (World[x * size + z] == 1)
-                {
-                    BoxPositions.push( x, 0.0, z )
-                    BoxColours.push(Math.random(), Math.random(), Math.random())
-                    BoxSizes.push( 1.0, 1.0, 1.0)
-                }
-            }
-        }
+        Volume = identity();
 
-        for (var i = 0; i < BoxPositions.length; i += 3)
-        {
-            BoxPositions[i + 0] -= (size - 1) / 2.0;
-            BoxPositions[i + 1] -= 0;
-            BoxPositions[i + 2] -= (size - 1) / 2.0;
-        }
-
-        console.log(BoxPositions)
-*/
-        /*
-        //BoxPositions.push(0.0, 1.0, 0.0)
-        //BoxColours.push(0.1, 0.1, 0.1);
-        //BoxSizes.push(100.0, 1.0, 100.0)
-        BoxPositions.push(0.0, -0.5, 0.0)
-        BoxColours.push(0.1, 0.1, 0.1);
-        BoxSizes.push(size, 0.01, size)
-
-        SpherePositions = [
-            0.0, 0.0, 2.5
-        ]
-
-        SphereColours = [
-            10.0, 10.0, 10.0,
-        ]
-
-        SphereSizes = [
-            0.25
-        ]
-*/        
-
-        /*
-        // corridor
-        BoxPositions = [
-            // ground
-            0.0, -1.0, -6.0,
-            0.0, 1.0, -6.0,
-            1.0, 0.0, -6.0,
-            -1.0, 0.0, -5.0,
-            -5.0, -1.0, -9.0,
-            -5.0, 1.0, -9.0,
-            -4.0, 0.0, -10.0,
-        ]
-
-        BoxColours = [
-            0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1,
-        ]
-
-        BoxSizes = [
-            2.0, 0.1, 8.0,
-            2.0, 0.1, 8.0,
-            0.1, 2.0, 8.0,
-            0.1, 2.0, 6.0,
-            8.0, 0.1, 2.0,
-            8.0, 0.1, 2.0,
-            10.0, 2.0, 0.1,
-        ]
-
-        SpherePositions = [
-            -2.0, -0.4, -9.0,
-
-            0.5, -0.65, -9.0
-        ]
-
-        SphereColours = [
-            10.0, 10.0, 10.0,
-            10.0, 0.5, 0.001
-        ]
-
-        SphereSizes = [
-            0.5,
-            0.25
-        ]
-        */
-
-
-        // Cornell Box for Debugging
-        BoxPositions = [ 
-            0.0, -0.2, 0.0, 
-            
-            0.0, -0.7, 0.0, 
-            -2.0, 1.35, 0.0,  
-            2.0, 1.35, 0.0,  
-            0.0, 1.3, -2.0,  
-            0.0, 3.4, 0.0,
-            0.0, 3.35, 0.0
-        ]
-
-        BoxColours = [ 
-            0.1, 0.1, 0.1,
-
-            0.14, 0.14, 0.14, 
-            0.8, 0.32, 0.32, 
-            0.1, 0.8, 0.1, 
-            0.1, 0.1, 0.1, 
-            0.14, 0.14, 0.14,
-            10.0, 10.0, 10.0
-        ]
-        BoxSizes = [ 
-            1.0, 1.0, 1.0, 
-
-            4.1, 0.1, 4.0, 
-            0.1, 4.0, 4.0, 
-            0.1, 4.0, 4.0, 
-            4.1, 4.1, 0.1, 
-            4.1, 0.1, 4.0 ,
-            1.0, 0.01, 1.0
-        ]
-
-        SpherePositions = [
-            1.0, -0.14, 1.5
-        ]
-
-        SphereColours = [
-            0.05, 0.05, 0.05
-        ]
-
-        SphereSizes = [
-            0.5
-        ]
-        return;
-        
-        
-        /*
-        // Throughput stress test
-        let GridSize = 40
-        var NBoxes = 0    
-        for (var x = 0; x <= GridSize; ++x)
-        {
-            for (var z = 0; z <= GridSize; ++z)
-            {
-                let xPosition = -(GridSize * 0.5) + (x)
-                let zPosition = -(GridSize * 0.5) + z
-    
-                let y = -10.0 + (sin(xPosition * 0.53423) + cos(zPosition * 0.32532))
-               // let y = Level1[x][z]
-               //let y = -10.0 + noise(xPosition, zPosition) * 0.5
-                BoxPositions.push(
-                    xPosition, 
-                    y, 
-                    zPosition)
-
-                if (Math.random() > 0.99) BoxColours.push(100.0, 0.2, 100.0)
-                else BoxColours.push(0.2, 0.2, 0.2)
-                BoxSizes.push(1.0, 1.0, 1.0)
-                NBoxes += 1;
-            }
-        }
-        
-        */
+        Volume = multiplym(scale(VolumeSize[0] * 0.5, VolumeSize[1] * 0.5, VolumeSize[2] * 0.5), Volume);
+        Volume = multiplym(translate(VolumePosition[0], VolumePosition[1], VolumePosition[2]), Volume);
     }
 
     function UpdateScene()
     {
-        //for (var i = 0; i < BoxPositions.length; i += 3)
-        //{
-        //   // BoxPositions[i + 0] = Math.floor(BoxPositions[i + 0] + WorldCenterPoint[0])
-        //   // BoxPositions[i + 2] = Math.floor(BoxPositions[i + 2] + WorldCenterPoint[1])
-        //    BoxPositions[i + 1] = -10.0 + Math.floor(sin(Math.floor(BoxPositions[i + 0] + CameraPosition[0]) * 0.53423) + cos(Math.floor(BoxPositions[i + 2] + CameraPosition[2]) * 0.32532))
-        //}
-    }
 
-    // RASTER SCENE
-    var RasterBoxPositions = []
-    var RasterBoxColours = []
-    var RasterBoxSizes = []
-
-    var RasterSpherePositions = []
-    var RasterSphereColours = []
-    var RasterSphereSizes = []
-
-    // once before each frame
-    function BuildRasterScene()
-    {
-        Candidates = []
-        for (var i = 0; i < BoxPositions.length; i += 3)
-        {
-            Candidates.push([
-                BoxPositions[i + 0], BoxPositions[i + 1], BoxPositions[i + 2],
-                BoxColours[i + 0], BoxColours[i + 1], BoxColours[i + 2],
-                BoxSizes[i + 0], BoxSizes[i + 1], BoxSizes[i + 2],
-            ])
-        }
-
-        RasterBoxPositions = []
-        RasterBoxColours = []
-        RasterBoxSizes = []
-
-        for (var i = 0; i < Candidates.length; ++i)
-        {
-            let position = [Candidates[i][0], Candidates[i][1], Candidates[i][2]]
-            let bounds = len([Candidates[i][6], Candidates[i][7], Candidates[i][8]])
-            if (!halfPlaneTest(FrustumLeft,   position, bounds)) continue;
-            if (!halfPlaneTest(FrustumRight,  position, bounds)) continue;
-            if (!halfPlaneTest(FrustumTop,    position, bounds)) continue;
-            if (!halfPlaneTest(FrustumBottom, position, bounds)) continue;
-            if (!halfPlaneTest(FrustumFront,  position, bounds)) continue;
-            if (!halfPlaneTest(FrustumBack,   position, bounds)) continue;
-            RasterBoxPositions.push(Candidates[i][0], Candidates[i][1], Candidates[i][2])
-            RasterBoxColours.push(Candidates[i][3], Candidates[i][4], Candidates[i][5])
-            RasterBoxSizes.push(Candidates[i][6], Candidates[i][7], Candidates[i][8])
-        }
-
-        RasterSpherePositions = SpherePositions
-        RasterSphereColours = SphereColours
-        RasterSphereSizes = SphereSizes
-    }
-
-    // RAY TRACING SCENE
-    var RTBoxPositions = []
-    var RTBoxColours = []
-    var RTBoxSizes = []
-
-    var RTSpherePositions = []
-    var RTSphereColours = []
-    var RTSphereSizes = []
-
-    function BuildRayTracingScene()
-    {
-        Culled = 0;
-        Candidates = []
-        for (var i = 0; i < BoxPositions.length; i += 3)
-        {
-            let position = [ BoxPositions[i + 0], BoxPositions[i + 1], BoxPositions[i + 2] ]
-
-            let fromCamera = normalize([
-                position[0] - CameraPosition[0],
-                position[1] - CameraPosition[1],
-                position[2] - CameraPosition[2]])
-
-            let d = 
-                fromCamera[0] * CameraForward[0] + 
-                fromCamera[1] * CameraForward[1] + 
-                fromCamera[2] * CameraForward[2];
-
-            if ((BoxPositions.length / 3) > MAX_RT_PRIMITIVES)
-            {
-                if (d < 0.9)
-                {
-                    Culled += 1;
-                    continue;
-                }
-            }
-  
-            Candidates.push([
-                BoxPositions[i + 0], BoxPositions[i + 1], BoxPositions[i + 2],
-                BoxColours[i + 0], BoxColours[i + 1], BoxColours[i + 2],
-                BoxSizes[i + 0], BoxSizes[i + 1], BoxSizes[i + 2],
-            ])
-        }
-
-        Candidates.sort((lhs, rhs) => {
-            let ld = len(subv(vec3(lhs[0], lhs[1], lhs[2]), vec3(CameraPosition[0], CameraPosition[1], CameraPosition[2])))
-            let rd = len(subv(vec3(rhs[0], rhs[1], rhs[2]), vec3(CameraPosition[0], CameraPosition[1], CameraPosition[2])))
-            return ld > rd;
-        });
-
-        RTBoxPositions = []
-        RTBoxColours = []
-        RTBoxSizes = []
-
-        for (var i = 0; i < Candidates.length && i < MAX_RT_PRIMITIVES; ++i)
-        {
-            RTBoxPositions.push(Candidates[i][0], Candidates[i][1], Candidates[i][2])
-            RTBoxColours.push(Candidates[i][3], Candidates[i][4], Candidates[i][5])
-            RTBoxSizes.push(Candidates[i][6], Candidates[i][7], Candidates[i][8])
-        }
-
-        RTSpherePositions = SpherePositions
-        RTSphereColours = SphereColours
-        RTSphereSizes = SphereSizes
     }
     
     // CAMERA
@@ -635,15 +294,14 @@
     var LastCameraRotation = CameraRotation
     var ViewTransformHasChanged = true;
 
-    var Near = 0.01
-    var Far = 100.0
+    var Near = 0.001
+    var Far = 1000.0
     var FOV = 45.0;
 
     var projMatrix        = identity();
     var worldToViewMatrix = identity();
     var viewToWorldMatrix = identity();
     var modelMatrix       = identity();
-
 
     //    ax + by + cz + d = 0
     var FrustumTop    = [ 0.0, 0.0, 0.0, 0.0 ]
@@ -676,47 +334,12 @@
         let viewProj = identity()
         viewProj = multiplym(projMatrix, worldToViewMatrix)
 
-        FrustumLeft = [
-            access(viewProj, 0, 3) + access(viewProj, 0, 0),
-            access(viewProj, 1, 3) + access(viewProj, 1, 0),
-            access(viewProj, 2, 3) + access(viewProj, 2, 0),
-            access(viewProj, 3, 3) + access(viewProj, 3, 0)
-        ]
-
-        FrustumRight = [
-            access(viewProj, 0, 3) - access(viewProj, 0, 0),
-            access(viewProj, 1, 3) - access(viewProj, 1, 0),
-            access(viewProj, 2, 3) - access(viewProj, 2, 0),
-            access(viewProj, 3, 3) - access(viewProj, 3, 0)
-        ]
-
-        FrustumTop = [
-            access(viewProj, 0, 3) - access(viewProj, 0, 1),
-            access(viewProj, 1, 3) - access(viewProj, 1, 1),
-            access(viewProj, 2, 3) - access(viewProj, 2, 1),
-            access(viewProj, 3, 3) - access(viewProj, 3, 1)
-        ]
-
-        FrustumBottom = [
-            access(viewProj, 0, 3) + access(viewProj, 0, 1),
-            access(viewProj, 1, 3) + access(viewProj, 1, 1),
-            access(viewProj, 2, 3) + access(viewProj, 2, 1),
-            access(viewProj, 3, 3) + access(viewProj, 3, 1)
-        ]
-
-        FrustumFront = [
-            access(viewProj, 0, 3) + access(viewProj, 0, 2),
-            access(viewProj, 1, 3) + access(viewProj, 1, 2),
-            access(viewProj, 2, 3) + access(viewProj, 2, 2),
-            access(viewProj, 3, 3) + access(viewProj, 3, 2)
-        ]
-
-        FrustumBack = [
-            access(viewProj, 0, 3) - access(viewProj, 0, 2),
-            access(viewProj, 1, 3) - access(viewProj, 1, 2),
-            access(viewProj, 2, 3) - access(viewProj, 2, 2),
-            access(viewProj, 3, 3) - access(viewProj, 3, 2)
-        ]
+        FrustumLeft   = [ access(viewProj, 0, 3) + access(viewProj, 0, 0), access(viewProj, 1, 3) + access(viewProj, 1, 0), access(viewProj, 2, 3) + access(viewProj, 2, 0), access(viewProj, 3, 3) + access(viewProj, 3, 0)]
+        FrustumRight  = [ access(viewProj, 0, 3) - access(viewProj, 0, 0), access(viewProj, 1, 3) - access(viewProj, 1, 0), access(viewProj, 2, 3) - access(viewProj, 2, 0), access(viewProj, 3, 3) - access(viewProj, 3, 0)]
+        FrustumTop    = [ access(viewProj, 1, 3) - access(viewProj, 1, 1), access(viewProj, 2, 3) - access(viewProj, 2, 1), access(viewProj, 0, 3) - access(viewProj, 0, 1), access(viewProj, 3, 3) - access(viewProj, 3, 1)]
+        FrustumBottom = [ access(viewProj, 0, 3) + access(viewProj, 0, 1), access(viewProj, 1, 3) + access(viewProj, 1, 1), access(viewProj, 2, 3) + access(viewProj, 2, 1), access(viewProj, 3, 3) + access(viewProj, 3, 1)]
+        FrustumFront  = [ access(viewProj, 0, 3) + access(viewProj, 0, 2), access(viewProj, 1, 3) + access(viewProj, 1, 2), access(viewProj, 2, 3) + access(viewProj, 2, 2), access(viewProj, 3, 3) + access(viewProj, 3, 2)]
+        FrustumBack   = [ access(viewProj, 0, 3) - access(viewProj, 0, 2), access(viewProj, 1, 3) - access(viewProj, 1, 2), access(viewProj, 2, 3) - access(viewProj, 2, 2), access(viewProj, 3, 3) - access(viewProj, 3, 2)]
 
         var LastView = ViewTransforms.pop();
         ViewTransforms.unshift(multiplym(projMatrix, worldToViewMatrix))
@@ -729,6 +352,10 @@
     function BasePass () 
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        /*
         if (MSAA.checked)
         {
             gl.bindFramebuffer(gl.FRAMEBUFFER, MSAAFramebufferA);
@@ -737,15 +364,22 @@
         {
             gl.bindFramebuffer(gl.FRAMEBUFFER, basePassFrameBuffer)
         }
+        */
 
         gl.clearColor(0.01, 0.01, 0.01, 0.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.clear(gl.DEPTH_BUFFER_BIT)
-        gl.enable(gl.CULL_FACE);
-        gl.cullFace(gl.BACK);
+        gl.disable(gl.CULL_FACE);
+        //gl.enable(gl.CULL_FACE);
+        //gl.cullFace(gl.BACK);
         gl.enable(gl.DEPTH_TEST)
         gl.disable(gl.BLEND)
-        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1,gl.COLOR_ATTACHMENT2]);
+        /*
+        gl.drawBuffers([
+            gl.COLOR_ATTACHMENT0, 
+            gl.COLOR_ATTACHMENT1,
+            gl.COLOR_ATTACHMENT2]);
+        */
         gl.useProgram(basePassShaderProgram);
 
         gl.uniform2fv(basePassWindowSizeLocation, [canvas.width, canvas.height])
@@ -753,39 +387,15 @@
         gl.uniformMatrix4fv(basePassProjMatrixLocation, false, projMatrix)
         gl.uniformMatrix4fv(basePassViewMatrixLocation, false, worldToViewMatrix)
         gl.uniform1i(basePassJitterUniform, TAA.checked ? 1 : 0);
+        gl.uniform4fv(basePassCameraPositionUniform, CameraPosition)
+        gl.uniform3fv(basePassVolumePositionUniform, VolumePosition)
+        gl.uniform3fv(basePassVolumeSizeUniform, VolumeSize)
 
-        var BoxPositionsToRasterize = [...RasterBoxPositions]
-        var BoxColoursToRasterize   = [...RasterBoxColours]
-        var BoxSizesToRasterize     = [...RasterBoxSizes]
+        gl.bindVertexArray(boxGeometryVertexArray);
 
-        while (BoxPositionsToRasterize.length > 0)
-        {
-            gl.bindVertexArray(boxGeometryVertexArray);
-            gl.uniform3fv(basePassTranslationLocation, BoxPositionsToRasterize);
-            gl.uniform3fv(basePassScaleLocation, BoxSizesToRasterize);
-            gl.uniform3fv(basePassColorUniform, BoxColoursToRasterize)
-            gl.drawArraysInstanced(gl.TRIANGLES, 0, boxGeometryPositions.length / 3, BoxPositionsToRasterize.length / 3);
-            BoxPositionsToRasterize.splice(0, MAX_RASTER_PRIMITIVES_PER_BATCH * 3)
-            BoxColoursToRasterize.splice(0, MAX_RASTER_PRIMITIVES_PER_BATCH * 3)
-        }
+        gl.uniformMatrix4fv(basePassTransformLocation, false, Volume);
 
-        
-        var SpherePositionsToRasterize = [...RasterSpherePositions]
-        var SphereColoursToRasterize   = [...RasterSphereColours]
-        var SphereSizesToRasterize     = []
-
-        for (var i = 0; i < RasterSphereSizes.length; ++i)
-        {
-            SphereSizesToRasterize.push(RasterSphereSizes[i], RasterSphereSizes[i], RasterSphereSizes[i])
-        }
-
-        gl.bindVertexArray(sphereGeometryVertexArray);
-        gl.uniform3fv(basePassTranslationLocation, SpherePositionsToRasterize);
-        gl.uniform3fv(basePassScaleLocation, SphereSizesToRasterize);
-        gl.uniform3fv(basePassColorUniform, SphereColoursToRasterize)
-        gl.drawArraysInstanced(gl.TRIANGLES, 0, sphereGeometryPositions.length / 3, SpherePositionsToRasterize.length / 3);
-        SpherePositionsToRasterize.splice(0, MAX_RASTER_PRIMITIVES_PER_BATCH * 3)
-        SphereColoursToRasterize.splice(0, MAX_RASTER_PRIMITIVES_PER_BATCH * 3)
+        gl.drawArraysInstanced(gl.TRIANGLES, 0, boxGeometryPositions.length / 3, 1);
 
         if (MSAA.checked)
         {
@@ -862,6 +472,7 @@
         gl.bindTexture(gl.TEXTURE_2D, WorldTexture)
         gl.uniform1i(LightingPassWorldTextureSampler, 6);
 
+        /*
         if (RTBoxPositions.length > 0)
         {
             gl.uniform1i(LightingPassNBoxesThisFrameUniform, RTBoxPositions.length)
@@ -869,6 +480,7 @@
             gl.uniform3fv(LightingPassBoxColours, RTBoxColours)
             gl.uniform3fv(LightingPassBoxSizes, RTBoxSizes)
         }
+        */
 
         gl.uniform3fv(LightingPassSpherePositions, SpherePositions);
         gl.uniform3fv(LightingPassSphereColours, SphereColours);
@@ -978,8 +590,8 @@
     function Render () 
     {
         BasePass();
-        LightingPass();
-        if (TAA.checked) TAAPass();
+        //LightingPass();
+        //if (TAA.checked) TAAPass();
         frameID++;
     }
 
@@ -1003,8 +615,6 @@
             ComputeView();
 
             UpdateScene();
-            BuildRasterScene();
-            BuildRayTracingScene();
 
             Render();
         }
@@ -1034,10 +644,10 @@
             CameraForward[1].toFixed(1) + ", " + 
             CameraForward[2].toFixed(1) + "</p>"
 
-        ui.innerHTML +="<p>" + BoxPositions.length / 3 + " boxes in scene </p>";
-        ui.innerHTML +="<p>" + RasterBoxPositions.length / 3 + " boxes sent to raster </p>";
-        ui.innerHTML +="<p>" + RTBoxPositions.length / 3 + " boxes in ray tracing </p>";
-        ui.innerHTML +="<p>" + Culled + " culled with dot </p>";
+     //   ui.innerHTML +="<p>" + BoxPositions.length / 3 + " boxes in scene </p>";
+     //   ui.innerHTML +="<p>" + RasterBoxPositions.length / 3 + " boxes sent to raster </p>";
+     //   ui.innerHTML +="<p>" + RTBoxPositions.length / 3 + " boxes in ray tracing </p>";
+     //   ui.innerHTML +="<p>" + Culled + " culled with dot </p>";
 
         size.innerHTML = "<p>" + canvas.width + " x " + canvas.height + "</p>"
         size.innerHTML += "<p>" + canvas.clientWidth + " x " + canvas.clientHeight + "</p>"
@@ -1067,7 +677,7 @@
 
     function PollInput() 
     {
-        var speed = 0.25
+        var speed = 0.0025
         var maxVelocity = 1.0
         var minVelocity = 0.01
 
@@ -1184,7 +794,6 @@
       }
     }
     
-    LoadWorld()
     BuildScene()
     requestAnimationFrame(Loop);
 }())
