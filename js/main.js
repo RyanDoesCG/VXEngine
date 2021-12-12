@@ -38,6 +38,10 @@
             TAAPassFragmentShaderHeaderSource +
             TAAPassFragmentShaderFooterSource))
 
+    var BlurPassShaderProgram = createProgram(gl,
+        createShader(gl, gl.VERTEX_SHADER, BlurPassVertexShaderSource),
+        createShader(gl, gl.FRAGMENT_SHADER, BlurPassFragmentShaderSource))
+
     // FRAME BUFFERS
     var albedoBuffer   = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA, gl.UNSIGNED_BYTE)
     var normalBuffer   = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA, gl.UNSIGNED_BYTE)
@@ -152,6 +156,10 @@
 
     var LightingPassFrameBuffer = createFramebuffer(gl, LightingBuffers[0])
     // TAA History
+
+    var BlurBuffer = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
+    var BlurFrameBuffer = createFramebuffer(gl, 
+        BlurBuffer)
     
     // TEXTURES
     var PerlinNoiseTexture = loadTexture(gl, 'images/noise/simplex.png')
@@ -221,6 +229,9 @@
     var TAAPassFarUniform = gl.getUniformLocation(TAAPassShaderProgram, "Far")
     var TAAPassTimeUniform = gl.getUniformLocation(TAAPassShaderProgram, "Time")
     
+    var BlurPassFrameUniform = gl.getUniformLocation(BlurPassShaderProgram, "FrameTexture")
+    var BlurPassHorizontalUniform = gl.getUniformLocation(BlurPassShaderProgram, "Horizontal");
+
     // Screen Pass Geometry Resources
     var screenGeometryVertexArray = gl.createVertexArray();
     gl.bindVertexArray(screenGeometryVertexArray);
@@ -489,7 +500,7 @@
     function TAAPass () 
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, AAFrameBuffer);
         gl.clearColor(0.01, 0.01, 0.01, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.useProgram(TAAPassShaderProgram);
@@ -570,7 +581,30 @@
             canvas.width,
             canvas.height,
             0);
-        
+    }
+
+    function BlurPass()
+    {
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, BlurFrameBuffer);
+        gl.clearColor(0.01, 0.01, 0.01, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(BlurPassShaderProgram);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, AABuffer);
+        gl.uniform1i(BlurPassFrameUniform, 0);
+        gl.uniform1i(BlurPassHorizontalUniform, 0);
+        gl.bindVertexArray(screenGeometryVertexArray);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, BlurBuffer);
+        gl.uniform1i(BlurPassFrameUniform, 0);
+        gl.uniform1i(BlurPassHorizontalUniform, 1);
+        gl.bindVertexArray(screenGeometryVertexArray);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
     }
 
     function Render () 
@@ -578,6 +612,7 @@
         BasePass();
         LightingPass();
         if (TAA.checked) TAAPass();
+        BlurPass();
         frameID++;
     }
 
