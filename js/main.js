@@ -23,15 +23,14 @@
     console.log(basePassVertexShaderSource)
     var basePassShaderProgram  = createProgram (gl, 
         createShader  (gl, gl.VERTEX_SHADER,   basePassVertexShaderSource), 
-        createShader  (gl, gl.FRAGMENT_SHADER, basePassFragmentShaderSource));
+        createShader  (gl, gl.FRAGMENT_SHADER, basePassFragmentShaderSourceHeader + voxelShaderSource + basePassFragmentShaderSourceBody));
 
-/*
     var LightingPassShaderProgram  = createProgram (gl, 
         createShader  (gl, gl.VERTEX_SHADER, LightingPassVertexShaderSource), 
         createShader  (gl, gl.FRAGMENT_SHADER, 
             LightingPassFragmentShaderHeaderSource +
+            voxelShaderSource + 
             LightingPassFragmentShaderFooterSource));
-*/
 
     var TAAPassShaderProgram = createProgram(gl,
         createShader(gl, gl.VERTEX_SHADER, TAAPassVertexShaderSource),
@@ -132,7 +131,9 @@
         gl.COLOR_ATTACHMENT0, 
         gl.RENDERBUFFER, 
         worldposRenderBuffer);
+    // MSAA
     
+    // TAA History
     let NumHistorySamples = 15;
     var LightingBuffers = [NumHistorySamples]
     for (var i = 0; i < NumHistorySamples; ++i)
@@ -150,7 +151,8 @@
         ViewTransforms[i] = identity()
 
     var LightingPassFrameBuffer = createFramebuffer(gl, LightingBuffers[0])
-
+    // TAA History
+    
     // TEXTURES
     var PerlinNoiseTexture = loadTexture(gl, 'images/noise/simplex.png')
     var WhiteNoiseTexture = loadTexture(gl, 'images/noise/white.png')
@@ -169,7 +171,7 @@
     var basePassCameraPositionUniform = gl.getUniformLocation(basePassShaderProgram, "CameraPosition")
     var basePassVolumePositionUniform = gl.getUniformLocation(basePassShaderProgram, "VolumePosition")
     var basePassVolumeSizeUniform = gl.getUniformLocation(basePassShaderProgram, "VolumeSize")
-/*
+
     var LightingPassProjectionUniform = gl.getUniformLocation(LightingPassShaderProgram, "projection")
     var LightingPassViewUniform = gl.getUniformLocation(LightingPassShaderProgram, "view");
     var LightingPassNearUniform = gl.getUniformLocation(LightingPassShaderProgram, "near")
@@ -179,26 +181,19 @@
     var LightingPassWhiteNoiseSampler = gl.getUniformLocation(LightingPassShaderProgram, "WhiteNoise")
     var LightingPassBlueNoiseSampler= gl.getUniformLocation(LightingPassShaderProgram, "BlueNoise")
 
-    var LightingPassNBoxesThisFrameUniform = gl.getUniformLocation(LightingPassShaderProgram, "NBoxesThisFrame")
-    var LightingPassBoxPositions = gl.getUniformLocation(LightingPassShaderProgram, "BoxPositions")
-    var LightingPassBoxColours = gl.getUniformLocation(LightingPassShaderProgram, "BoxColours")
-    var LightingPassBoxSizes = gl.getUniformLocation(LightingPassShaderProgram, "BoxSizes")
-
-    var LightingPassSpherePositions = gl.getUniformLocation(LightingPassShaderProgram, "SpherePositions")
-    var LightingPassSphereColours = gl.getUniformLocation(LightingPassShaderProgram, "SphereColours")
-    var LightingPassSphereSizes = gl.getUniformLocation(LightingPassShaderProgram, "SphereSizes")
-
     var LightingPassWorldTextureSampler = gl.getUniformLocation(LightingPassShaderProgram, "WorldTexture");
 
     var LightingPassAlbedoSampler = gl.getUniformLocation(LightingPassShaderProgram, "AlbedoBuffer");
     var LightingPassNormalSampler = gl.getUniformLocation(LightingPassShaderProgram, "NormalBuffer");
-    var LightingPassUVSampler     = gl.getUniformLocation(LightingPassShaderProgram, "UVBuffer");
+    var LightingPassUVSampler     = gl.getUniformLocation(LightingPassShaderProgram, "PositionBuffer");
     var LightingPassTimeUniform = gl.getUniformLocation(LightingPassShaderProgram, "Time")
     var LightingPassCameraPositionUniform = gl.getUniformLocation(LightingPassShaderProgram, "CameraPosition")
+    var LightingPassVolumePositionUniform = gl.getUniformLocation(LightingPassShaderProgram, "VolumePosition")
+    var LightingPassVolumeSizeUniform = gl.getUniformLocation(LightingPassShaderProgram, "VolumeSize")
     var LightingPassViewToWorldUniform = gl.getUniformLocation(LightingPassShaderProgram, "ViewToWorld");
     var LightingPassWorldToViewUniform = gl.getUniformLocation(LightingPassShaderProgram, "WorldToView")
     var LightingPassShadingModeUniform = gl.getUniformLocation(LightingPassShaderProgram, "ShadingMode")
-*/
+
     var TAAPassWorldPositionBufferSampler = gl.getUniformLocation(TAAPassShaderProgram, "WorldPositionBuffer")
     var TAAPassDepthBufferSampler = gl.getUniformLocation(TAAPassShaderProgram, "DepthBuffer")
     var TAAPassFrameBufferSamplers = gl.getUniformLocation(TAAPassShaderProgram, "Frames")
@@ -221,7 +216,6 @@
 
     var TAAPassCameraPositionUniform = gl.getUniformLocation(TAAPassShaderProgram, "CameraPosition")
     var TAAPassCameraForwardUniform = gl.getUniformLocation(TAAPassShaderProgram, "CameraForward")
-
 
     var TAAPassNearUniform = gl.getUniformLocation(TAAPassShaderProgram, "Near")
     var TAAPassFarUniform = gl.getUniformLocation(TAAPassShaderProgram, "Far")
@@ -268,7 +262,7 @@
     // SCENE
     var Volume
     var VolumePosition = [ 0.0, 0.0, 0.0 ]
-    var VolumeSize = [ 8.0, 8.0, 8.0]
+    var VolumeSize = [ 32.0, 32.0, 32.0]
 
     function BuildScene()
     {
@@ -353,9 +347,18 @@
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        /*
+
+        //if (TAA.checked)
+        //{
+        //    LightingPassFrameBuffer = createFramebuffer(gl, LightingBuffers[0])
+        //    gl.bindFramebuffer(gl.FRAMEBUFFER, LightingPassFrameBuffer);
+        //}
+        //else
+        //{
+        //    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        //}
+        
         if (MSAA.checked)
         {
             gl.bindFramebuffer(gl.FRAMEBUFFER, MSAAFramebufferA);
@@ -364,9 +367,9 @@
         {
             gl.bindFramebuffer(gl.FRAMEBUFFER, basePassFrameBuffer)
         }
-        */
+        
 
-        gl.clearColor(0.01, 0.01, 0.01, 0.0);
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.clear(gl.DEPTH_BUFFER_BIT)
         gl.disable(gl.CULL_FACE);
@@ -374,12 +377,10 @@
         //gl.cullFace(gl.BACK);
         gl.enable(gl.DEPTH_TEST)
         gl.disable(gl.BLEND)
-        /*
         gl.drawBuffers([
             gl.COLOR_ATTACHMENT0, 
             gl.COLOR_ATTACHMENT1,
             gl.COLOR_ATTACHMENT2]);
-        */
         gl.useProgram(basePassShaderProgram);
 
         gl.uniform2fv(basePassWindowSizeLocation, [canvas.width, canvas.height])
@@ -468,27 +469,12 @@
         gl.bindTexture(gl.TEXTURE_2D, BlueNoiseTexture);
         gl.uniform1i(LightingPassBlueNoiseSampler, 5);
 
-        gl.activeTexture(gl.TEXTURE6)
-        gl.bindTexture(gl.TEXTURE_2D, WorldTexture)
-        gl.uniform1i(LightingPassWorldTextureSampler, 6);
-
-        /*
-        if (RTBoxPositions.length > 0)
-        {
-            gl.uniform1i(LightingPassNBoxesThisFrameUniform, RTBoxPositions.length)
-            gl.uniform3fv(LightingPassBoxPositions, RTBoxPositions)
-            gl.uniform3fv(LightingPassBoxColours, RTBoxColours)
-            gl.uniform3fv(LightingPassBoxSizes, RTBoxSizes)
-        }
-        */
-
-        gl.uniform3fv(LightingPassSpherePositions, SpherePositions);
-        gl.uniform3fv(LightingPassSphereColours, SphereColours);
-        gl.uniform1fv(LightingPassSphereSizes, SphereSizes);
-
         gl.uniform1f(LightingPassTimeUniform, frameID);
 
         gl.uniform4fv(LightingPassCameraPositionUniform, CameraPosition);
+        gl.uniform3fv(LightingPassVolumePositionUniform, VolumePosition);
+        gl.uniform3fv(LightingPassVolumeSizeUniform, VolumeSize);
+        
         gl.uniformMatrix4fv(LightingPassViewToWorldUniform, false, (viewToWorldMatrix))
         gl.uniformMatrix4fv(LightingPassWorldToViewUniform, false, (worldToViewMatrix))
 
@@ -575,23 +561,23 @@
         
         // Using the anti-aliased image as the history sample
         // much better quality, bad ghosting
-       // gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
-       // gl.copyTexImage2D(
-       //     gl.TEXTURE_2D, 
-       //     0,
-       //     gl.RGBA, 
-       //     0, 0,
-       //     canvas.width,
-       //     canvas.height,
-       //     0);
+        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
+        gl.copyTexImage2D(
+            gl.TEXTURE_2D, 
+            0,
+            gl.RGBA, 
+            0, 0,
+            canvas.width,
+            canvas.height,
+            0);
         
     }
 
     function Render () 
     {
         BasePass();
-        //LightingPass();
-        //if (TAA.checked) TAAPass();
+        LightingPass();
+        if (TAA.checked) TAAPass();
         frameID++;
     }
 
@@ -675,11 +661,15 @@
     var UpArrowPressed = false;
     var DownArrowPressed = false;
 
+    var ShiftPressed = false;
+
     function PollInput() 
     {
-        var speed = 0.0025
-        var maxVelocity = 1.0
-        var minVelocity = 0.01
+        var speed = 0.025
+        if (ShiftPressed)
+        {
+            speed = 0.02;
+        }
 
         if (DPressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraRight,  speed))
         if (APressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraRight, -speed))
@@ -749,6 +739,7 @@
             else if (event.key == 'ArrowRight') RightArrowPressed = !RightArrowPressed
             else if (event.key == 'ArrowUp')    UpArrowPressed    = !UpArrowPressed
             else if (event.key == 'ArrowDown')  DownArrowPressed  = !DownArrowPressed
+            else if (event.key == 'Shift') ShiftPressed = !ShiftPressed;
         }
     }
 
