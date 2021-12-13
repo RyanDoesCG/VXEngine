@@ -1,4 +1,15 @@
 voxelShaderSource = `
+//
+//    float random (vec2 st) 
+//    {
+//        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+//    }    
+//
+    float randomHash (vec3 st) 
+    {
+        return fract(sin(dot(st.xyz, vec3(12.9898,78.233,24.23423))) * 43758.5453123);
+    }    
+
     struct Ray {
         vec3 origin;
         vec3 direction;
@@ -67,13 +78,27 @@ voxelShaderSource = `
 
     bool testVoxel(ivec3 uv)
     {
-        vec3 point = vec3(0.0, (VolumeSize.y - 1.0) * 0.5, 0.0) + vec3(0.0, VolumeSize.y * 0.5, 0.0);
-        return distance(vec3(uv), point) > VolumeSize.y * 0.75;
+
+       // return float(uv.y) < 6.0 + sin((float(uv.x) + Time * 0.002) * 2.0 + cos(float(uv.z) + Time * 0.01)) * 2.0; 
+      //  float f = texture(PerlinNoise, frag_uvs);
+       // return true;
+    vec3 point = vec3(0.0, (VolumeSize.y - 1.0) * 0.5, 0.0) + vec3(0.0, VolumeSize.y * 0.5, 0.0);
+    return distance(vec3(uv), point) > VolumeSize.y * 0.75;
      //   return uv.y == VolumeSize * 0.5;
        // return uv.x < 3;
        // return uv.x == 0 || uv.y == 0 || uv.z == 0;
      //   return distance(vec3(uv), vec3(VolumeSize * 0.5)) < 0.0;
      //   return float(uv.y) < 12.0 + sin(float(uv.x)) + cos(float(uv.z));
+    }
+
+    vec3 paintVoxel(ivec3 uv)
+    {
+        //if (randomHash(floor(vec3(uv.xyz) * VolumeSize.xyz) + 1.0) < 0.99)
+        {
+            return vec3(0.1, 0.1, 0.1);
+        }
+
+        return vec3(100.0, 0.01,100.0);
     }
 
     Hit IntersectVoxelsStepping (Ray primary)
@@ -243,7 +268,7 @@ voxelShaderSource = `
                 {
                     vec3 VolumeCorner = VolumePosition - VolumeSize * 0.5;
                     vec3 VoxelPosition = floor(VolumeCorner + vec3(VolumeIndex)) + 0.5;
-
+                    vec3 VoxelColour = paintVoxel(VolumeIndex);
                     //result.normal = VolumeCoord;
                     //return result;
                     
@@ -251,7 +276,7 @@ voxelShaderSource = `
                     voxelHit.t = BIG_NUMBER;
                     voxelHit = IntersectRayBox(primary, Box(
                             VoxelPosition,
-                            vec3(0.2),//vec3(VolumeIndex) / (VolumeSize - 1.0),
+                            VoxelColour,
                             vec3(1.0)), voxelHit);
 
                     return voxelHit;

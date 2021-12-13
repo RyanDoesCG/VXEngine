@@ -1,7 +1,5 @@
 var BlurPassVertexShaderSource = `#version 300 es
-
-precision lowp float;
-
+    precision lowp float;
     in vec4 vertex_position;
     in vec2 vertex_uvs;
     out vec2 frag_uvs;

@@ -53,7 +53,7 @@ var TAAPassFragmentShaderFooterSource = `
     bool shouldRejectSample (vec2 uv)
     {
         bool inRange = uv.x < 1.0 && uv.x > 0.0 && uv.y < 1.0 && uv.y > 0.0;
-        bool farFromCurrentPixel = length(uv - frag_uvs) > 0.01;
+        bool farFromCurrentPixel = length(uv - frag_uvs) > 0.02;
         return !inRange || farFromCurrentPixel;
     }
 
@@ -62,6 +62,7 @@ var TAAPassFragmentShaderFooterSource = `
         vec4 Result = vec4(0.0, 0.0, 0.0, 1.0);
 
         vec4 position = texture(WorldPositionBuffer, frag_uvs);
+        position.w = 1.0;
 
         const float MaxWeight = 1.0;
         const float MinWeight = 0.25;

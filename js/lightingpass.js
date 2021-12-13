@@ -81,28 +81,30 @@ var LightingPassFragmentShaderFooterSource = `
         out_color = Albedo;
 
         {
-           Ray BounceRay;
-           BounceRay.origin = Position.xyz + Normal.xyz * 0.01;
-           BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
+            Ray BounceRay;
+            BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
+            BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
+ 
+            Hit BounceHit = IntersectVoxelsLinear(BounceRay);
+            if (BounceHit.t < BIG_NUMBER)
+            {
+               // out_color.xyz += BounceHit.colour;
+                out_color.xyz *= 0.25;
+            }
+        }
 
-           Hit BounceHit = IntersectVoxelsLinear(BounceRay);
-           if (BounceHit.t < BIG_NUMBER)
-           {
-               out_color.xyz *= 0.5;
-           }
-       }
-//
-       // {
-       //     Ray BounceRay;
-       //     BounceRay.origin = Position.xyz + Normal.xyz * 0.01;
-       //     BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
-//
-       //     Hit BounceHit = IntersectVoxelsLinear(BounceRay);
-       //     if (BounceHit.t < BIG_NUMBER)
-       //     {
-       //         out_color *= 0.5;
-       //     }
-       // }
+        {
+            Ray BounceRay;
+            BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
+            BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
+
+            Hit BounceHit = IntersectVoxelsLinear(BounceRay);
+            if (BounceHit.t < BIG_NUMBER)
+            {
+               // out_color.xyz += BounceHit.colour;
+                out_color.xyz *= 0.25;
+            }
+        }
 
         
         float gamma = 2.2;

@@ -95,9 +95,6 @@ var basePassFragmentShaderSourceBody = `
 
     void main() 
     {        
-        // vec4 Result = vec4(1.0, 0.0, 1.0, 1.0);
-        vec4 Result = vec4(0.0, 0.0, 0.0, 0.0);
-
         vec3 rayjitter = vec3(0.0);
         //if (ShouldJitter == 1)
         //{
@@ -113,10 +110,13 @@ var basePassFragmentShaderSourceBody = `
         {
             out_color = vec4(primaryHit.colour, 1.0);
             out_normal = vec4((primaryHit.normal.xyz + 1.0) * 0.5, 1.0);
-            out_worldpos = vec4(primaryHit.position.xyz, 1.0);
+            out_worldpos = vec4(primaryHit.position.xyz, primaryHit.t);
+           // gl_FragDepth = 100.0;
+        }
+        else
+        {
+           // gl_FragDepth = 100.0;
         }
 
-        //out_color = Result;
-        //out_normal = vec4((frag_normal + 1.0) * 0.5, 1.0);
-        //out_worldpos = frag_worldpos;
+
     }`

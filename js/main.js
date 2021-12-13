@@ -3,6 +3,7 @@
 {
     let MSAA = document.getElementById('MSAAOn')
     let TAA  = document.getElementById('TAAOn')
+    let DoF  = document.getElementById('DoFOn')
 
     var canvas = document.getElementById('canv')
     var gl = canvas.getContext("webgl2")
@@ -41,6 +42,10 @@
     var BlurPassShaderProgram = createProgram(gl,
         createShader(gl, gl.VERTEX_SHADER, BlurPassVertexShaderSource),
         createShader(gl, gl.FRAGMENT_SHADER, BlurPassFragmentShaderSource))
+
+    var DoFPassShaderProgram = createProgram(gl,
+        createShader(gl, gl.VERTEX_SHADER, DoFVertexShaderSource),
+        createShader(gl, gl.FRAGMENT_SHADER, DoFFragmentShaderSource))
 
     // FRAME BUFFERS
     var albedoBuffer   = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA, gl.UNSIGNED_BYTE)
@@ -157,9 +162,12 @@
     var LightingPassFrameBuffer = createFramebuffer(gl, LightingBuffers[0])
     // TAA History
 
-    var BlurBuffer = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
-    var BlurFrameBuffer = createFramebuffer(gl, 
-        BlurBuffer)
+    var BlurBufferA = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
+    var BlurFrameBufferA = createFramebuffer(gl, 
+        BlurBufferA)
+    var BlurBufferB = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
+    var BlurFrameBufferB = createFramebuffer(gl, 
+        BlurBufferB)
     
     // TEXTURES
     var PerlinNoiseTexture = loadTexture(gl, 'images/noise/simplex.png')
@@ -232,6 +240,10 @@
     var BlurPassFrameUniform = gl.getUniformLocation(BlurPassShaderProgram, "FrameTexture")
     var BlurPassHorizontalUniform = gl.getUniformLocation(BlurPassShaderProgram, "Horizontal");
 
+    var DoFPassBluredFrameUniform = gl.getUniformLocation(DoFPassShaderProgram, "BlurredScene");
+    var DoFPassUnblurredFrameUniform = gl.getUniformLocation(DoFPassShaderProgram, "UnblurredScene")
+    var DoFPassDepthUniform = gl.getUniformLocation(DoFPassShaderProgram, "WorldPositionBuffer");
+
     // Screen Pass Geometry Resources
     var screenGeometryVertexArray = gl.createVertexArray();
     gl.bindVertexArray(screenGeometryVertexArray);
@@ -273,7 +285,7 @@
     // SCENE
     var Volume
     var VolumePosition = [ 0.0, 0.0, 0.0 ]
-    var VolumeSize = [ 32.0, 32.0, 32.0]
+    var VolumeSize = [ 64.0, 64.0, 64.0]
 
     function BuildScene()
     {
@@ -299,8 +311,8 @@
     var LastCameraRotation = CameraRotation
     var ViewTransformHasChanged = true;
 
-    var Near = 0.001
-    var Far = 1000.0
+    var Near = 0.1
+    var Far = 200.0
     var FOV = 45.0;
 
     var projMatrix        = identity();
@@ -358,18 +370,6 @@
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
 
-
-
-        //if (TAA.checked)
-        //{
-        //    LightingPassFrameBuffer = createFramebuffer(gl, LightingBuffers[0])
-        //    gl.bindFramebuffer(gl.FRAMEBUFFER, LightingPassFrameBuffer);
-        //}
-        //else
-        //{
-        //    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        //}
-        
         if (MSAA.checked)
         {
             gl.bindFramebuffer(gl.FRAMEBUFFER, MSAAFramebufferA);
@@ -378,15 +378,13 @@
         {
             gl.bindFramebuffer(gl.FRAMEBUFFER, basePassFrameBuffer)
         }
-        
 
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.clear(gl.DEPTH_BUFFER_BIT)
         gl.disable(gl.CULL_FACE);
-        //gl.enable(gl.CULL_FACE);
-        //gl.cullFace(gl.BACK);
-        gl.enable(gl.DEPTH_TEST)
+        gl.disable(gl.DEPTH_TEST)
+    //    gl.depthRange(Near, Far);
         gl.disable(gl.BLEND)
         gl.drawBuffers([
             gl.COLOR_ATTACHMENT0, 
@@ -432,6 +430,9 @@
                 0, 0, canvas.width, canvas.height,
                 gl.COLOR_BUFFER_BIT, gl.LINEAR);
         }
+
+//        gl.disable(gl.DEPTH_TEST)
+//        gl.depthMask(false);
     }
 
     function LightingPass () 
@@ -445,7 +446,14 @@
         }
         else
         {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            if (DoF.checked)
+            {
+                gl.bindFramebuffer(gl.FRAMEBUFFER, AAFrameBuffer);
+            }
+            else
+            {
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+            }
         }
 
         gl.useProgram(LightingPassShaderProgram);
@@ -500,7 +508,15 @@
     function TAAPass () 
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, AAFrameBuffer);
+        if (DoF.checked)
+        {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, AAFrameBuffer);
+        }
+        else
+        {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        }
+
         gl.clearColor(0.01, 0.01, 0.01, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.useProgram(TAAPassShaderProgram);
@@ -586,7 +602,7 @@
     function BlurPass()
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, BlurFrameBuffer);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, BlurFrameBufferA);
         gl.clearColor(0.01, 0.01, 0.01, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.useProgram(BlurPassShaderProgram);
@@ -597,9 +613,9 @@
         gl.bindVertexArray(screenGeometryVertexArray);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, BlurFrameBufferB);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, BlurBuffer);
+        gl.bindTexture(gl.TEXTURE_2D, BlurBufferA);
         gl.uniform1i(BlurPassFrameUniform, 0);
         gl.uniform1i(BlurPassHorizontalUniform, 1);
         gl.bindVertexArray(screenGeometryVertexArray);
@@ -607,12 +623,45 @@
 
     }
 
+    function DepthOfFieldPass()
+    {
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.clearColor(0.01, 0.01, 0.01, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(DoFPassShaderProgram);
+    
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, BlurBufferB);
+        gl.uniform1i(DoFPassBluredFrameUniform, 0);
+
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, AABuffer);
+        gl.uniform1i(DoFPassUnblurredFrameUniform, 1);
+
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, worldposBuffer);
+        gl.uniform1i(DoFPassDepthUniform, 2);
+
+        gl.bindVertexArray(screenGeometryVertexArray);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
     function Render () 
     {
         BasePass();
         LightingPass();
-        if (TAA.checked) TAAPass();
-        BlurPass();
+        if (TAA.checked) 
+        {
+            TAAPass();
+        }
+
+        if (DoF.checked)
+        {
+            BlurPass();
+            DepthOfFieldPass();
+        }
+
         frameID++;
     }
 

@@ -26,6 +26,10 @@
             </select>
             <br>
             <br>
+            <input type="checkbox" id="DoFOn" name="DoFOn" checked>
+            <label for="DoFOn">DoF</label>
+            <br>
+            <br>
             <input type="checkbox" id="MSAAOn" name="MSAAOn">
             <label for="MSAAOn">MSAA</label>
             <br>
@@ -34,7 +38,7 @@
             <label for="TSAAOn">TAA</label>
         </div>
 
-        <canvas width="512" height="512" id="canv"></canvas>
+        <canvas width="400" height="400" id="canv"></canvas>
         <script src="js/maths.js"></script>
         <script src="js/noise.js"></script>
         <script src="js/geometry.js"></script>
@@ -43,6 +47,7 @@
         <script src="js/lightingpass.js"></script>
         <script src="js/taapass.js"></script>
         <script src="js/blurpass.js"></script>
+        <script src="js/dofpass.js"></script>
         <script src="js/shaders.js"></script>
         <script src="js/texture.js"></script>
         <script src="js/framebuffer.js"></script>
