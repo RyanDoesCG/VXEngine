@@ -17,7 +17,7 @@ var LightingPassFragmentShaderHeaderSource =
 
     #define PI 3.1415926535
 
-    precision lowp float;
+    precision highp float;
 
     uniform sampler2D AlbedoBuffer;
     uniform sampler2D NormalBuffer;
@@ -77,6 +77,13 @@ var LightingPassFragmentShaderFooterSource = `
         vec4 Albedo = texture(AlbedoBuffer, frag_uvs);
         vec4 Normal = -1.0 + (texture(NormalBuffer, frag_uvs) * 2.0);
         vec4 Position = texture(PositionBuffer, frag_uvs);
+
+        if (Albedo.w == 0.0)
+        {
+            out_color = vec4(0.0);
+            out_color.w = 1.0;
+            return;
+        }
 
         out_color = Albedo;
 

@@ -1,7 +1,8 @@
 var basePassVertexShaderSource = 
     `#version 300 es
 
-    precision lowp float;
+    precision highp float;
+    precision lowp int;
 
     #define NUM_VOLUMES 1
 
@@ -11,6 +12,7 @@ var basePassVertexShaderSource =
 
     uniform float Time;
     uniform vec2 WindowSize;
+        uniform int ShouldJitter;
 
     uniform vec4 CameraPosition;
 
@@ -34,7 +36,7 @@ var basePassVertexShaderSource =
         float y = random(vec2(0.0, Time) * 10.0);
 
         mat4 jitter_proj = proj;
-        //if (ShouldJitter == 1)
+        if (ShouldJitter == 1)
         {
             jitter_proj[2][0] = (x * 2.0 - 1.0) / WindowSize.x;
             jitter_proj[2][1] = (y * 2.0 - 1.0) / WindowSize.y;
@@ -53,7 +55,8 @@ var basePassFragmentShaderSourceHeader =
     #define BIG_NUMBER 100000.0
     #define SMALL_NUMBER 0.0001
 
-    precision lowp float;
+    precision highp float;
+    precision lowp int;
 
     in vec4 frag_worldpos;
     in vec3 frag_normal;
@@ -98,7 +101,7 @@ var basePassFragmentShaderSourceBody = `
         vec3 rayjitter = vec3(0.0);
         //if (ShouldJitter == 1)
         //{
-        //    rayjitter = vec3(random(frag_uv.xy), random(frag_uv.yx), 0.0) * 0.0025;
+        //    rayjitter = vec3(random(frag_uv.xy), random(frag_uv.yx), 0.0) * 0.0001;
         //}
 
         Ray primaryRay;

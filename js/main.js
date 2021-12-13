@@ -284,13 +284,12 @@
 
     // SCENE
     var Volume
-    var VolumePosition = [ 0.0, 0.0, 0.0 ]
-    var VolumeSize = [ 64.0, 64.0, 64.0]
+    var VolumePosition = [ 0.0,0.0, 0.0 ]
+    var VolumeSize = [ 32.0, 32.0, 32.0]
 
     function BuildScene()
     {
         Volume = identity();
-
         Volume = multiplym(scale(VolumeSize[0] * 0.5, VolumeSize[1] * 0.5, VolumeSize[2] * 0.5), Volume);
         Volume = multiplym(translate(VolumePosition[0], VolumePosition[1], VolumePosition[2]), Volume);
     }
@@ -312,7 +311,7 @@
     var ViewTransformHasChanged = true;
 
     var Near = 0.1
-    var Far = 200.0
+    var Far = 400.0
     var FOV = 45.0;
 
     var projMatrix        = identity();
@@ -497,8 +496,6 @@
         gl.uniformMatrix4fv(LightingPassViewToWorldUniform, false, (viewToWorldMatrix))
         gl.uniformMatrix4fv(LightingPassWorldToViewUniform, false, (worldToViewMatrix))
 
-        gl.uniform1i(LightingPassShadingModeUniform, document.getElementById('shading').selectedIndex);
-
         gl.bindVertexArray(screenGeometryVertexArray);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
@@ -517,7 +514,7 @@
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         }
 
-        gl.clearColor(0.01, 0.01, 0.01, 0);
+        gl.clearColor(0.0, 0.0, 0.0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.useProgram(TAAPassShaderProgram);
 
@@ -603,7 +600,7 @@
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
         gl.bindFramebuffer(gl.FRAMEBUFFER, BlurFrameBufferA);
-        gl.clearColor(0.01, 0.01, 0.01, 0);
+        gl.clearColor(0.0, 0.0, 0.0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.useProgram(BlurPassShaderProgram);
         gl.activeTexture(gl.TEXTURE0);
@@ -627,7 +624,7 @@
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.clearColor(0.01, 0.01, 0.01, 0);
+        gl.clearColor(0.0, 0.0, 0.0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.useProgram(DoFPassShaderProgram);
     

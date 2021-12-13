@@ -11,19 +11,13 @@
 
         <div id="ui"></div>
         <div id="notes">
-            <p> - Dynamic Resolution</p>
-            <p> - Account for box size in frustum cull</p>
+
         </div>
         <div id="size">
         </div>
         <div id="loading"><p>loading</p></div>
 
         <div id="controls">
-            <select name="shading" id="shading">
-                <option value="0">Ray Traced Diffuse GI</option>
-                <option value="1">Lambertian Diffuse</option>
-                <option value="2">Unlit</option>
-            </select>
             <br>
             <br>
             <input type="checkbox" id="DoFOn" name="DoFOn" checked>
@@ -38,7 +32,7 @@
             <label for="TSAAOn">TAA</label>
         </div>
 
-        <canvas width="400" height="400" id="canv"></canvas>
+        <canvas width="300" height="300" id="canv"></canvas>
         <script src="js/maths.js"></script>
         <script src="js/noise.js"></script>
         <script src="js/geometry.js"></script>
