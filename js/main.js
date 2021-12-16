@@ -284,7 +284,7 @@
 
     // SCENE
     var Volume
-    var VolumePosition = [ 0.0,0.0, 0.0 ]
+    var VolumePosition = [ 0.0, 0.0, 0.0 ]
     var VolumeSize = [ 32.0, 32.0, 32.0]
 
     function BuildScene()

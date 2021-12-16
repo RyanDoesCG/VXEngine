@@ -91,7 +91,6 @@ var LightingPassFragmentShaderFooterSource = `
             Ray BounceRay;
             BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
             BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
- 
             Hit BounceHit = IntersectVoxelsLinear(BounceRay);
             if (BounceHit.t < BIG_NUMBER)
             {
@@ -112,7 +111,6 @@ var LightingPassFragmentShaderFooterSource = `
                 out_color.xyz *= 0.25;
             }
         }
-
         
         float gamma = 2.2;
         out_color.rgb = pow(out_color.rgb, vec3(1.0/gamma));

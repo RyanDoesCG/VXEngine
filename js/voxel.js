@@ -78,28 +78,63 @@ voxelShaderSource = `
 
     bool testVoxel(ivec3 uv)
     {
-//return true;
+     //   return uv.y < 3;
+  //  return !(uv.x == 0 && uv.y == 0 && uv.z == 0);
       //  return float(uv.y) < 6.0 + (sin((float(uv.x) * 0.1) * 2.0 + cos(float(uv.z) * 0.1)) * 2.0) * length(vec3(uv)) * 0.01; 
       //  float f = texture(PerlinNoise, frag_uvs);
        // return true;
     vec3 point = vec3(0.0, (VolumeSize.y - 1.0) * 0.5, 0.0) + vec3(0.0, VolumeSize.y * 0.5, 0.0);
     return distance(vec3(uv), point) > VolumeSize.y * 0.75;
-     //   return uv.y == VolumeSize * 0.5;
-        return uv.y < 3;
+    // //   return uv.y == VolumeSize * 0.5;
+        //return uv.y < 3;
        // return uv.x == 0 || uv.y == 0 || uv.z == 0;
      //   return distance(vec3(uv), vec3(VolumeSize * 0.5)) < 0.0;
      //   return float(uv.y) < 12.0 + sin(float(uv.x)) + cos(float(uv.z));
+        //return true;
     }
 
     vec3 paintVoxel(ivec3 uv)
     {
-        //return vec3(uv) / (VolumeSize - 1.0);
+       // return vec3(uv) / (VolumeSize - 1.0);
         //if (randomHash(floor(vec3(uv.xyz) * VolumeSize.xyz) + 1.0) < 0.99)
         {
             return vec3(0.1, 0.1, 0.1);
         }
 
-        return vec3(100.0, 0.01,100.0);
+        //return vec3(100.0, 0.01,100.0);
+    }
+
+    float intersectRayPlane(Ray ray, vec3 PlanePosition, vec3 PlaneNormal)
+    {
+        float d = dot (PlaneNormal, ray.direction);
+        if (d < 0.0)
+        {
+            float t = dot (PlanePosition - ray.origin, PlaneNormal) / d;
+            if (t >= 0.0)
+                return t;
+        }
+        return BIG_NUMBER;
+    }
+
+    Hit intersectRayVoxel(Ray ray, ivec3 VolumeIndex)
+    {
+        vec3 VolumeCorner  = VolumePosition - VolumeSize * 0.5;
+        vec3 VoxelPosition = floor(VolumeCorner + vec3(VolumeIndex)) + 0.5;
+        vec3 VoxelColour   = paintVoxel(VolumeIndex);
+        Hit voxelHit;
+        voxelHit.t = BIG_NUMBER;
+        voxelHit = IntersectRayBox(ray, Box(
+                VoxelPosition,
+                VoxelColour,
+                vec3(1.0)), voxelHit);
+        return voxelHit;
+    }
+
+    Hit Miss ()
+    {
+        Hit miss;
+        miss.t = BIG_NUMBER;
+        return miss;
     }
 
     Hit IntersectVoxelsStepping (Ray primary)
@@ -109,58 +144,97 @@ voxelShaderSource = `
         result = IntersectRayBox(primary, Box(
             VolumePosition,
             vec3(1.0, 0.0, 1.0),
-            VolumeSize), result);
-            
+            VolumeSize), result);            
+
         if (result.t < BIG_NUMBER)
         {
             result.t = max(result.t, 0.0);
 
+            //////////////////////////////////////////////////////////
             // INITIALIZATION PHASE
-
-            // Points in world space at which the ray 
-            // enters and exits the volume
-            vec3 RayStart = primary.origin + primary.direction * result.t;
-            vec3 RayStop  = primary.origin + primary.direction * result.t2;
-
-            // Convert the world space positions to
-            // points in volume-space (3D UVs)
-            vec3  inv = 1.0 / (VolumeSize);
-            vec3  StartVolumeCoord  = ((RayStart - VolumePosition) + VolumeSize * 0.5) * inv;
-            vec3  StopVolumeCoord   = ((RayStop  - VolumePosition) + VolumeSize * 0.5) * inv;
-
-            // Convert the volume-space coordinates to
-            // integer indices
-            ivec3 EntryVoxel    = ivec3(floor(StartVolumeCoord * (VolumeSize)));
-            ivec3 ExitVoxel     = ivec3(floor(StopVolumeCoord  * (VolumeSize)));
-
+            //////////////////////////////////////////////////////////
+            // Points in world space at which the ray enters and exits the volume
+            // artifacts caused by fp error at t
+            vec3  RayStart         = primary.origin + primary.direction * (result.t  + 0.0001);
+            vec3  RayStop          = primary.origin + primary.direction * (result.t2 + 0.0001);
+            // Convert the world space positions to points in volume-space (3D UVs)
+            vec3  EntryVolumeCoord = ((RayStart - VolumePosition) + VolumeSize * 0.5) / (VolumeSize - 1.0);
+            vec3  ExitVolumeCoord  = ((RayStop  - VolumePosition) + VolumeSize * 0.5) / (VolumeSize - 1.0);
+            // Convert the volume-space coordinates to integer indices to give our entry and exit voxel IDs
+            ivec3 EntryVoxel       = ivec3(floor(EntryVolumeCoord * (VolumeSize - 1.0)));
+            ivec3 ExitVoxel        = ivec3(floor(ExitVolumeCoord  * (VolumeSize - 1.0)));
             // Where do we go next on each axis?
-            ivec3 StepDirection = ivec3(sign(primary.direction));
+            ivec3 StepDirection    = ivec3(sign(primary.direction));
+            // make a new ray that starts on the volume
+            Ray   VolumeRay        = Ray(EntryVolumeCoord * (VolumeSize - 1.0), primary.direction);
 
-            vec3 VolumeCorner = VolumePosition - VolumeSize * 0.5;
-            float tMaxX = (VolumeCorner.x + float(EntryVoxel.x) - RayStart.x) / primary.direction.x;
-            float tMaxY = (VolumeCorner.y + float(EntryVoxel.y) - RayStart.y) / primary.direction.y;
-            float tMaxZ = (VolumeCorner.z + float(EntryVoxel.z) - RayStart.z) / primary.direction.z;
-            
-            float tDeltaX = 1.0 / primary.direction.x;
-            float tDeltaY = 1.0 / primary.direction.y;
-            float tDeltaZ = 1.0 / primary.direction.z;
+            float NextXBoundary = float(EntryVoxel.x);
+            if (StepDirection.x > 0) NextXBoundary += 1.0;
+            float tMaxX = intersectRayPlane(
+                VolumeRay,
+                vec3(NextXBoundary, 0.0, 0.0),
+                vec3(-StepDirection.x, 0.0, 0.0));
+    
+            float NextYBoundary = float(EntryVoxel.y);
+            if (StepDirection.y > 0) NextYBoundary += 1.0;
+            float tMaxY = intersectRayPlane(
+                VolumeRay,
+                vec3(0.0, NextYBoundary, 0.0),
+                vec3(0.0, -StepDirection.y, 0.0));
 
+            float NextZBoundary = float(EntryVoxel.z);
+            if (StepDirection.z > 0) NextZBoundary += 1.0;
+            float tMaxZ = intersectRayPlane(
+                VolumeRay,
+                vec3(0.0, 0.0, NextZBoundary),
+                vec3(0.0, 0.0, -StepDirection.z));   
+
+            float tDeltaX = 100000.0;
+            if (VolumeRay.direction.x > 0.0)
+                tDeltaX = intersectRayPlane(
+                    VolumeRay,
+                    vec3(VolumeRay.origin.x + 1.0, 0.0, 0.0),
+                    vec3(-1.0, 0.0, 0.0));
+
+            if (VolumeRay.direction.x < 0.0)
+                tDeltaX = intersectRayPlane(
+                    VolumeRay,
+                    vec3(VolumeRay.origin.x - 1.0, 0.0, 0.0),
+                    vec3(1.0, 0.0, 0.0));
+
+            float tDeltaY = 100000.0;
+            if (VolumeRay.direction.y > 0.0)
+                tDeltaY = intersectRayPlane(
+                    VolumeRay,
+                    vec3(0.0, VolumeRay.origin.y + 1.0, 0.0),
+                    vec3(0.0, -1.0, 0.0));
+
+            if (VolumeRay.direction.y < 0.0)
+                tDeltaY = intersectRayPlane(
+                    VolumeRay,
+                    vec3(0.0, VolumeRay.origin.y - 1.0, 0.0),
+                    vec3(0.0, 1.0, 0.0));
+
+            float tDeltaZ = 100000.0;
+            if (VolumeRay.direction.z > 0.0)
+                tDeltaZ = intersectRayPlane(
+                    VolumeRay,
+                    vec3(0.0, 0.0, VolumeRay.origin.z + 1.0),
+                    vec3(0.0, 0.0, -1.0));
+
+            if (VolumeRay.direction.z < 0.0)
+                tDeltaZ = intersectRayPlane(
+                    VolumeRay,
+                    vec3(0.0, 0.0, VolumeRay.origin.z - 1.0),
+                    vec3(0.0, 0.0, 1.0));
+
+            //////////////////////////////////////////////////////////
             // ITERATION PHASE
+            //////////////////////////////////////////////////////////
             ivec3 VoxelIndex = EntryVoxel;
-
             if (testVoxel(VoxelIndex))
             {
-                vec3 VoxelPosition = floor(VolumeCorner + vec3(VoxelIndex)) + 0.5;
-                vec3 VoxelColour = paintVoxel(VoxelIndex);
- 
-                Hit voxelHit;
-                voxelHit.t = BIG_NUMBER;
-                voxelHit = IntersectRayBox(primary, Box(
-                        VoxelPosition,
-                        VoxelColour,
-                        vec3(1.0)), voxelHit);
-            
-                return voxelHit;
+                return intersectRayVoxel(primary, VoxelIndex);
             }
 
             while (VoxelIndex != ExitVoxel)
@@ -170,19 +244,11 @@ voxelShaderSource = `
                     if (tMaxX < tMaxZ)
                     {
                         VoxelIndex.x += StepDirection.x;
-                        if (VoxelIndex.x >= int(VolumeSize.x) || VoxelIndex.x < 0)
-                        {
-                            break;
-                        }
                         tMaxX += tDeltaX;
                     }
                     else
                     {
                         VoxelIndex.z += StepDirection.z;
-                        if (VoxelIndex.z >= int(VolumeSize.z) || VoxelIndex.z < 0)
-                        {
-                            break;
-                        }
                         tMaxZ += tDeltaZ;
                     }
                 }
@@ -191,48 +257,29 @@ voxelShaderSource = `
                     if (tMaxY < tMaxZ)
                     {
                         VoxelIndex.y += StepDirection.y;
-                        if (VoxelIndex.y >= int(VolumeSize.y) || VoxelIndex.y < 0)
-                        {
-                            break;
-                        }
                         tMaxY += tDeltaY;
                     }
                     else 
                     {
                         VoxelIndex.z += StepDirection.z;
-                        if (VoxelIndex.z >= int(VolumeSize.z) || VoxelIndex.z < 0)
-                        {
-                            break;
-                        }
                         tMaxZ += tDeltaZ;
                     }
                 }
 
+                // Have we left the grid? exit the loop if so
+                if (VoxelIndex.x >= int(VolumeSize.x) || VoxelIndex.x < 0) break;
+                if (VoxelIndex.y >= int(VolumeSize.y) || VoxelIndex.y < 0) break;
+                if (VoxelIndex.z >= int(VolumeSize.z) || VoxelIndex.z < 0) break;
+
+                // Otherwise, test the voxel we landed in
                 if (testVoxel(VoxelIndex))
                 {
-                    vec3 VoxelPosition = floor(VolumeCorner + vec3(VoxelIndex)) + 0.5;
-                    vec3 VoxelColour = paintVoxel(VoxelIndex);
-    
-                    Hit voxelHit;
-                    voxelHit.t = BIG_NUMBER;
-                    voxelHit = IntersectRayBox(primary, Box(
-                            VoxelPosition,
-                            VoxelColour,
-                            vec3(1.0)), voxelHit);
-                
-                    return voxelHit;
+                    return intersectRayVoxel(primary, VoxelIndex);
                 }
-
-               // Hit miss;
-               // miss.t = BIG_NUMBER;
-               // return miss;
             }     
-        
-        }
+        }  
 
-        Hit miss;
-        miss.t = BIG_NUMBER;
-        return miss;
+        return Miss();
     }
 
     Hit IntersectVoxelsLinear (Ray primary)
@@ -248,13 +295,11 @@ voxelShaderSource = `
         {
             result.t = max(result.t, 0.0);
 
-            const int   N     = 256;            // number of steps to take
-            const float S     = 1.0 / float(N); // size of each step
-            float range = result.t2 - result.t; // length of the path through the volume
-
+            const int   N = 256;                  // number of steps to take
+            const float S = 1.0 / float(N);       // size of each step
+            float   range = result.t2 - result.t; // length of the path through the volume
             vec3 inv = 1.0 / (VolumeSize - 1.0);
 
-            // march through the volume
             for (int i = 1; i < N; ++i)
             {
                 float t = result.t + (range * float(i) * S);      
@@ -263,28 +308,12 @@ voxelShaderSource = `
                 vec3  VolumeCoord = ((p - VolumePosition) + VolumeSize * 0.5) * inv;
                 ivec3 VolumeIndex = ivec3(floor(VolumeCoord * (VolumeSize - 1.0)));
 
-                // hit a filled voxel
                 if (testVoxel(VolumeIndex))
                 {
-                    vec3 VolumeCorner = VolumePosition - VolumeSize * 0.5;
-                    vec3 VoxelPosition = floor(VolumeCorner + vec3(VolumeIndex)) + 0.5;
-                    vec3 VoxelColour = paintVoxel(VolumeIndex);
-                    //result.normal = VolumeCoord;
-                    //return result;
-                    
-                    Hit voxelHit;
-                    voxelHit.t = BIG_NUMBER;
-                    voxelHit = IntersectRayBox(primary, Box(
-                            VoxelPosition,
-                            VoxelColour,
-                            vec3(1.0)), voxelHit);
-
-                    return voxelHit;
+                    return intersectRayVoxel(primary, VolumeIndex); 
                 }
             }
         }
         
-        Hit miss;
-        miss.t = BIG_NUMBER;
-        return miss;
+        return Miss();
     }`

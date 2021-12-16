@@ -2,7 +2,7 @@ var basePassVertexShaderSource =
     `#version 300 es
 
     precision highp float;
-    precision lowp int;
+    precision highp int;
 
     #define NUM_VOLUMES 1
 
@@ -56,7 +56,7 @@ var basePassFragmentShaderSourceHeader =
     #define SMALL_NUMBER 0.0001
 
     precision highp float;
-    precision lowp int;
+    precision highp int;
 
     in vec4 frag_worldpos;
     in vec3 frag_normal;
@@ -108,18 +108,16 @@ var basePassFragmentShaderSourceBody = `
         primaryRay.origin = CameraPosition.xyz;
         primaryRay.direction = normalize(frag_worldpos.xyz - CameraPosition.xyz) + rayjitter;
 
-        Hit primaryHit = IntersectVoxelsLinear(primaryRay);
+       // out_color = vec4(0.01, 0.01, 0.01, 1.0);
+        
+        //Hit primaryHit = IntersectVoxelsLinear(primaryRay);
+        Hit primaryHit = IntersectVoxelsStepping(primaryRay);
+    
         if (primaryHit.t < BIG_NUMBER)
         {
             out_color = vec4(primaryHit.colour, 1.0);
-            out_normal = vec4((primaryHit.normal.xyz + 1.0) * 0.5, 1.0);
+            out_normal   = vec4((primaryHit.normal.xyz + 1.0) * 0.5, 1.0);
             out_worldpos = vec4(primaryHit.position.xyz, primaryHit.t);
-           // gl_FragDepth = 100.0;
         }
-        else
-        {
-           // gl_FragDepth = 100.0;
-        }
-
 
     }`
