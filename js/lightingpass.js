@@ -17,13 +17,12 @@ var LightingPassFragmentShaderHeaderSource =
 
     #define PI 3.1415926535
 
-    precision highp float;
+    precision lowp float;
 
     uniform sampler2D AlbedoBuffer;
     uniform sampler2D NormalBuffer;
     uniform sampler2D PositionBuffer;
 
-    uniform sampler2D PerlinNoise;
     uniform sampler2D WhiteNoise;
     uniform sampler2D BlueNoise;
 
@@ -86,31 +85,31 @@ var LightingPassFragmentShaderFooterSource = `
         }
 
         out_color = Albedo;
-
+//
         {
             Ray BounceRay;
             BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
             BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
-            Hit BounceHit = IntersectVoxelsLinear(BounceRay);
+            Hit BounceHit = IntersectVoxelsStepping(BounceRay);
             if (BounceHit.t < BIG_NUMBER)
             {
-               // out_color.xyz += BounceHit.colour;
-                out_color.xyz *= 0.25;
+                //out_color.xyz += BounceHit.colour;
+                out_color.xyz *= 0.1;
             }
         }
 
-        {
-            Ray BounceRay;
-            BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
-            BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
-
-            Hit BounceHit = IntersectVoxelsLinear(BounceRay);
-            if (BounceHit.t < BIG_NUMBER)
-            {
-               // out_color.xyz += BounceHit.colour;
-                out_color.xyz *= 0.25;
-            }
-        }
+        //{
+        //    Ray BounceRay;
+        //    BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
+        //    BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
+//
+        //    Hit BounceHit = IntersectVoxelsLinear(BounceRay);
+        //    if (BounceHit.t < BIG_NUMBER)
+        //    {
+        //        //out_color.xyz += BounceHit.colour;
+        //        out_color.xyz *= 0.25;
+        //    }
+        //}
         
         float gamma = 2.2;
         out_color.rgb = pow(out_color.rgb, vec3(1.0/gamma));

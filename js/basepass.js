@@ -1,8 +1,9 @@
 var basePassVertexShaderSource = 
     `#version 300 es
 
-    precision highp float;
-    precision highp int;
+    precision lowp sampler3D;
+    precision lowp float;
+    precision lowp int;
 
     #define NUM_VOLUMES 1
 
@@ -12,7 +13,7 @@ var basePassVertexShaderSource =
 
     uniform float Time;
     uniform vec2 WindowSize;
-        uniform int ShouldJitter;
+    uniform int ShouldJitter;
 
     uniform vec4 CameraPosition;
 
@@ -55,8 +56,8 @@ var basePassFragmentShaderSourceHeader =
     #define BIG_NUMBER 100000.0
     #define SMALL_NUMBER 0.0001
 
-    precision highp float;
-    precision highp int;
+    precision lowp float;
+    precision lowp int;
 
     in vec4 frag_worldpos;
     in vec3 frag_normal;
@@ -99,10 +100,10 @@ var basePassFragmentShaderSourceBody = `
     void main() 
     {        
         vec3 rayjitter = vec3(0.0);
-        //if (ShouldJitter == 1)
-        //{
-        //    rayjitter = vec3(random(frag_uv.xy), random(frag_uv.yx), 0.0) * 0.0001;
-        //}
+        if (ShouldJitter == 1)
+        {
+            rayjitter = vec3(random(frag_uv.xy), random(frag_uv.yx), 0.0) * 0.00;
+        }
 
         Ray primaryRay;
         primaryRay.origin = CameraPosition.xyz;
@@ -110,8 +111,9 @@ var basePassFragmentShaderSourceBody = `
 
        // out_color = vec4(0.01, 0.01, 0.01, 1.0);
         
-        //Hit primaryHit = IntersectVoxelsLinear(primaryRay);
+       // Hit primaryHit = IntersectVoxelsLinear(primaryRay);
         Hit primaryHit = IntersectVoxelsStepping(primaryRay);
+       // Hit primaryHit = IntersectVoxelsHybrid(primaryRay);
     
         if (primaryHit.t < BIG_NUMBER)
         {

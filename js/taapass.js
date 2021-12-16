@@ -11,7 +11,7 @@ var TAAPassVertexShaderSource =
 
 var TAAPassFragmentShaderHeaderSource = 
     `#version 300 es
-    precision highp float;
+    precision lowp float;
 
     #define NFrames 15
 

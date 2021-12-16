@@ -187,6 +187,7 @@
     var basePassCameraPositionUniform = gl.getUniformLocation(basePassShaderProgram, "CameraPosition")
     var basePassVolumePositionUniform = gl.getUniformLocation(basePassShaderProgram, "VolumePosition")
     var basePassVolumeSizeUniform = gl.getUniformLocation(basePassShaderProgram, "VolumeSize")
+    var basePassPerlinNoiseSampler = gl.getUniformLocation(basePassShaderProgram, "PerlinNoise");
 
     var LightingPassProjectionUniform = gl.getUniformLocation(LightingPassShaderProgram, "projection")
     var LightingPassViewUniform = gl.getUniformLocation(LightingPassShaderProgram, "view");
@@ -285,7 +286,7 @@
     // SCENE
     var Volume
     var VolumePosition = [ 0.0, 0.0, 0.0 ]
-    var VolumeSize = [ 32.0, 32.0, 32.0]
+    var VolumeSize = [ 64.0, 64.0, 64.0]
 
     function BuildScene()
     {
@@ -311,7 +312,7 @@
     var ViewTransformHasChanged = true;
 
     var Near = 0.1
-    var Far = 400.0
+    var Far = 1000.0
     var FOV = 45.0;
 
     var projMatrix        = identity();
@@ -390,6 +391,10 @@
             gl.COLOR_ATTACHMENT1,
             gl.COLOR_ATTACHMENT2]);
         gl.useProgram(basePassShaderProgram);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, PerlinNoiseTexture);
+        gl.uniform1i(basePassPerlinNoiseSampler, 0);
 
         gl.uniform2fv(basePassWindowSizeLocation, [canvas.width, canvas.height])
         gl.uniform1f(basePassTimeUniform, frameID);
