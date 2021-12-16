@@ -93,6 +93,30 @@ function createVolumeTexture(gl, data, SIZE)
     return texture;
 }
 
+function updateVolumeTexture(gl, texture, data, size)
+{
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_3D, texture);
+
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_BASE_LEVEL, 0);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAX_LEVEL, 0);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    gl.texImage3D(
+        gl.TEXTURE_3D, 
+        0, 
+        gl.R8,
+        size[0], 
+        size[1], 
+        size[2],
+        0, 
+        gl.RED, 
+        gl.UNSIGNED_BYTE,
+        data);
+    gl.generateMipmap(gl.TEXTURE_3D);
+}
+
 function createDepthTexture (gl, width, height)
 {
     const texture = gl.createTexture();

@@ -334,10 +334,29 @@
             CameraForward
         )
 
-        if (IntersectionVoxelIndex[0] != -1)
+        if (IntersectionVoxelIndex[0] != -1 && SpacePressed)
         {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_3D, VoxelTexture);
+        
+            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_BASE_LEVEL, 0);
+            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAX_LEVEL, 0);
+            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);        
+
             VoxelTextureData[IntersectionVoxelIndex[0] + IntersectionVoxelIndex[1]  * VolumeSize[0] + IntersectionVoxelIndex[2] * VolumeSize[0] * VolumeSize[0]] = 0;
-            VoxelTexture = createVolumeTexture(gl, VoxelTextureData, VolumeSize[0]);
+            gl.texSubImage3D(
+                gl.TEXTURE_3D,
+                0, 
+                IntersectionVoxelIndex[0], 
+                IntersectionVoxelIndex[1], 
+                IntersectionVoxelIndex[2], 
+                1, 
+                1, 
+                1, 
+                gl.RED, 
+                gl.UNSIGNED_BYTE, 
+                new Uint8Array([ 0 ]));
         }
     }
     
@@ -639,15 +658,15 @@
         
         // Using the anti-aliased image as the history sample
         // much better quality, bad ghosting
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
-        gl.copyTexImage2D(
-            gl.TEXTURE_2D, 
-            0,
-            gl.RGBA, 
-            0, 0,
-            canvas.width,
-            canvas.height,
-            0);
+        //gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
+        //gl.copyTexImage2D(
+        //    gl.TEXTURE_2D, 
+        //    0,
+        //    gl.RGBA, 
+        //    0, 0,
+        //    canvas.width,
+        //    canvas.height,
+        //    0);
     }
 
     function BlurPass()
@@ -799,6 +818,8 @@
 
     var ShiftPressed = false;
 
+    var SpacePressed = false;
+
     function PollInput() 
     {      
         var speed = 0.0125
@@ -876,6 +897,7 @@
             else if (event.key == 'ArrowUp')    UpArrowPressed    = !UpArrowPressed
             else if (event.key == 'ArrowDown')  DownArrowPressed  = !DownArrowPressed
             else if (event.key == 'Shift') ShiftPressed = !ShiftPressed;
+            else if (event.key == ' ') SpacePressed = !SpacePressed;
         }
     }
 

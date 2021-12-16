@@ -551,6 +551,9 @@ function IntersectBoundingBox (Size, Position, RayPosition, RayDirection)
 
     if (maxt >= Math.max(0.0, mint))
     {
+        mint = Math.max(0.0, mint);
+
+
         return [
             [RayPosition[0] + RayDirection[0] * mint, RayPosition[1] + RayDirection[1] * mint,RayPosition[2] + RayDirection[2] * mint],
             [RayPosition[0] + RayDirection[0] * maxt, RayPosition[1] + RayDirection[1] * maxt,RayPosition[2] + RayDirection[2] * maxt] 
@@ -596,9 +599,9 @@ function IntersectVolume (VolumeSize, VolumePosition, VolumeData, RayPosition, R
             (Math.floor(ExitVolumeCoord[2] * (VolumeSize[2] - 1.0))) ];
 
         var StepDirection    = [
-            ((RayDirection[0] > 0) ? 1 : -1),
-            ((RayDirection[0] > 0) ? 1 : -1),
-            ((RayDirection[0] > 0) ? 1 : -1)];
+            ((RayDirection[0] >= 0) ? 1.0 : -1.0),
+            ((RayDirection[1] >= 0) ? 1.0 : -1.0),
+            ((RayDirection[2] >= 0) ? 1.0 : -1.0)];
 
         var VolumeRayPosition = [ 
             EntryVolumeCoord[0] * (VolumeSize[0] - 1.0),
@@ -670,7 +673,7 @@ function IntersectVolume (VolumeSize, VolumePosition, VolumeData, RayPosition, R
                 VolumeRayDirection);
 
         if (VolumeRayDirection[2] < 0.0)
-            tDeltaY = IntersectRayPlane(
+            tDeltaZ = IntersectRayPlane(
                 [0.0, 0.0, VolumeRayPosition[2] - 1.0],
                 [0.0, 0.0,  1.0 ],
                 VolumeRayPosition,
