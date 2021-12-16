@@ -53,7 +53,7 @@ var LightingPassFragmentShaderFooterSource = `
             BlueNoise, 
             vec2(sin(Time * 1.0), cos(Time * 1.0)) * 0.1
                 + 
-            (frag_uvs * 1.0) 
+            (frag_uvs * 1.5) 
                 + 
             vec2(seed)).x;
     }
