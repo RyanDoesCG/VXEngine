@@ -5,7 +5,8 @@ function createShader(gl, stage, source)
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-    if (success) {
+    if (success) 
+    {
       return shader;
     }
 

@@ -3,9 +3,9 @@
 //////////////////////////////////////
 function noise (x, y)
 {
-    // to do : bilinear filtering
     let xAddress = Math.floor(Math.abs(x) % 63)
     let yAddress = Math.floor(Math.abs(y) % 63)
+
     return ((rawNoiseData[xAddress][yAddress]) - 78)
 }
 

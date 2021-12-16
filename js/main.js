@@ -174,7 +174,8 @@
     var WhiteNoiseTexture = loadTexture(gl, 'images/noise/white.png')
     var BlueNoiseTexture = loadTexture(gl, 'images/noise/blue.png')
 
-    var WorldTexture 
+    var VoxelTextureData
+    var VoxelTexture
 
     // UNIFORMS
     var basePassTransformLocation = gl.getUniformLocation(basePassShaderProgram, "transform")
@@ -188,6 +189,8 @@
     var basePassVolumePositionUniform = gl.getUniformLocation(basePassShaderProgram, "VolumePosition")
     var basePassVolumeSizeUniform = gl.getUniformLocation(basePassShaderProgram, "VolumeSize")
     var basePassPerlinNoiseSampler = gl.getUniformLocation(basePassShaderProgram, "PerlinNoise");
+
+    var basePassVoxelTextureSampler = gl.getUniformLocation(basePassShaderProgram, "VoxelTexture")
 
     var LightingPassProjectionUniform = gl.getUniformLocation(LightingPassShaderProgram, "projection")
     var LightingPassViewUniform = gl.getUniformLocation(LightingPassShaderProgram, "view");
@@ -210,6 +213,8 @@
     var LightingPassViewToWorldUniform = gl.getUniformLocation(LightingPassShaderProgram, "ViewToWorld");
     var LightingPassWorldToViewUniform = gl.getUniformLocation(LightingPassShaderProgram, "WorldToView")
     var LightingPassShadingModeUniform = gl.getUniformLocation(LightingPassShaderProgram, "ShadingMode")
+
+    var LightingPassVoxelTextureUniform = gl.getUniformLocation(LightingPassShaderProgram, "VoxelTexture");
 
     var TAAPassWorldPositionBufferSampler = gl.getUniformLocation(TAAPassShaderProgram, "WorldPositionBuffer")
     var TAAPassDepthBufferSampler = gl.getUniformLocation(TAAPassShaderProgram, "DepthBuffer")
@@ -286,18 +291,54 @@
     // SCENE
     var Volume
     var VolumePosition = [ 0.0, 0.0, 0.0 ]
-    var VolumeSize = [ 64.0, 64.0, 64.0]
+    var VolumeSize = [ 4.0, 4.0, 4.0]
 
     function BuildScene()
     {
+        let SIZE = 64;
+        VolumeSize = [SIZE, SIZE, SIZE]
+        VoxelTextureData = new Uint8Array(SIZE * SIZE * SIZE);
+        for (var z = 0; z < SIZE; ++z) {
+            for (var y = 0; y < SIZE; ++y) {
+                for (var x = 0; x < SIZE; ++x) {
+
+                    let height = Math.max(noise(x * 0.5, z * 0.5) * 0.5, SIZE * 0.25);
+                    if (y < height)
+                    {
+                        VoxelTextureData[x + y * SIZE + z * SIZE * SIZE] = 255;
+                    }
+                    else
+                    {
+                        VoxelTextureData[x + y * SIZE + z * SIZE * SIZE] = 0;
+                    }    
+                }
+            }
+        }
+
+        VoxelTexture = createVolumeTexture(gl, VoxelTextureData, SIZE);
+
         Volume = identity();
         Volume = multiplym(scale(VolumeSize[0] * 0.5, VolumeSize[1] * 0.5, VolumeSize[2] * 0.5), Volume);
         Volume = multiplym(translate(VolumePosition[0], VolumePosition[1], VolumePosition[2]), Volume);
     }
 
+    var CameraRayIntersection = [0, 0, 0]
+
     function UpdateScene()
     {
+        var IntersectionVoxelIndex = IntersectVolume(
+            VolumeSize,
+            VolumePosition,
+            VoxelTextureData,
+            CameraPosition,
+            CameraForward
+        )
 
+        if (IntersectionVoxelIndex[0] != -1)
+        {
+            VoxelTextureData[IntersectionVoxelIndex[0] + IntersectionVoxelIndex[1]  * VolumeSize[0] + IntersectionVoxelIndex[2] * VolumeSize[0] * VolumeSize[0]] = 0;
+            VoxelTexture = createVolumeTexture(gl, VoxelTextureData, VolumeSize[0]);
+        }
     }
     
     // CAMERA
@@ -392,9 +433,13 @@
             gl.COLOR_ATTACHMENT2]);
         gl.useProgram(basePassShaderProgram);
 
+        gl.uniform1i(basePassVoxelTextureSampler, 0);
         gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_3D, VoxelTexture);
+
+        gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, PerlinNoiseTexture);
-        gl.uniform1i(basePassPerlinNoiseSampler, 0);
+        gl.uniform1i(basePassPerlinNoiseSampler, 1);
 
         gl.uniform2fv(basePassWindowSizeLocation, [canvas.width, canvas.height])
         gl.uniform1f(basePassTimeUniform, frameID);
@@ -491,6 +536,10 @@
         gl.activeTexture(gl.TEXTURE5);
         gl.bindTexture(gl.TEXTURE_2D, BlueNoiseTexture);
         gl.uniform1i(LightingPassBlueNoiseSampler, 5);
+
+        gl.activeTexture(gl.TEXTURE6);
+        gl.uniform1i(LightingPassVoxelTextureUniform, 6);
+        gl.bindTexture(gl.TEXTURE_3D, VoxelTexture);
 
         gl.uniform1f(LightingPassTimeUniform, frameID);
 
@@ -731,7 +780,8 @@
             DisplayedFrameTime = TimeSinceLastUpdate;
         }
        
-        requestAnimationFrame(Loop)
+    //    setInterval(Loop, 33);
+      //  requestAnimationFrame(Loop)
     }
 
     var APressed = false;
@@ -750,8 +800,8 @@
     var ShiftPressed = false;
 
     function PollInput() 
-    {
-        var speed = 0.025
+    {      
+        var speed = 0.0125
         if (ShiftPressed)
         {
             speed = 0.02;
@@ -764,7 +814,7 @@
         if (QPressed) CameraVelocity[1] -= speed
         if (EPressed) CameraVelocity[1] += speed
 
-        var lookSpeed = 0.001
+        var lookSpeed = 0.0005
         if (LeftArrowPressed)  CameraAngularVelocity[1] -= lookSpeed;
         if (RightArrowPressed) CameraAngularVelocity[1] += lookSpeed;
         if (UpArrowPressed)    CameraAngularVelocity[0] -= lookSpeed;
@@ -872,5 +922,5 @@
     }
     
     BuildScene()
-    requestAnimationFrame(Loop);
+    setInterval(Loop, 16);
 }())

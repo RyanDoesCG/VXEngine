@@ -1,9 +1,9 @@
 var basePassVertexShaderSource = 
     `#version 300 es
 
-    precision lowp sampler3D;
-    precision lowp float;
-    precision lowp int;
+    precision highp sampler3D;
+    precision highp float;
+    precision highp int;
 
     #define NUM_VOLUMES 1
 
@@ -56,8 +56,9 @@ var basePassFragmentShaderSourceHeader =
     #define BIG_NUMBER 100000.0
     #define SMALL_NUMBER 0.0001
 
-    precision lowp float;
-    precision lowp int;
+    precision highp sampler3D;
+    precision highp float;
+    precision highp int;
 
     in vec4 frag_worldpos;
     in vec3 frag_normal;
@@ -117,7 +118,7 @@ var basePassFragmentShaderSourceBody = `
     
         if (primaryHit.t < BIG_NUMBER)
         {
-            out_color = vec4(primaryHit.colour, 1.0);
+            out_color    = vec4(primaryHit.colour, 1.0);
             out_normal   = vec4((primaryHit.normal.xyz + 1.0) * 0.5, 1.0);
             out_worldpos = vec4(primaryHit.position.xyz, primaryHit.t);
         }

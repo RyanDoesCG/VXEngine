@@ -1,5 +1,6 @@
 var LightingPassVertexShaderSource = 
     `#version 300 es
+    precision highp sampler3D;
 
     in vec4 vertex_position;
     in vec2 vertex_uvs;
@@ -17,7 +18,8 @@ var LightingPassFragmentShaderHeaderSource =
 
     #define PI 3.1415926535
 
-    precision lowp float;
+    precision highp sampler3D;
+    precision highp float;
 
     uniform sampler2D AlbedoBuffer;
     uniform sampler2D NormalBuffer;
@@ -85,18 +87,20 @@ var LightingPassFragmentShaderFooterSource = `
         }
 
         out_color = Albedo;
-//
+
         {
             Ray BounceRay;
             BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
             BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
-            Hit BounceHit = IntersectVoxelsStepping(BounceRay);
+            Hit BounceHit = IntersectVoxelsLinear(BounceRay);
             if (BounceHit.t < BIG_NUMBER)
             {
                 //out_color.xyz += BounceHit.colour;
                 out_color.xyz *= 0.1;
             }
         }
+
+
 
         //{
         //    Ray BounceRay;
