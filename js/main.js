@@ -217,6 +217,11 @@
     var LightingPassSelectedVoxelUniform = gl.getUniformLocation(LightingPassShaderProgram, "SelectedVoxel")
     var LightingPassVoxelTextureUniform = gl.getUniformLocation(LightingPassShaderProgram, "VoxelTexture");
 
+    var LightingPassLightDirectionUniform = gl.getUniformLocation(LightingPassShaderProgram, "LightDirection")
+    var LightingPassLightPositionUniform = gl.getUniformLocation(LightingPassShaderProgram, "LightPosition")
+    var LightingPassLightColourUniform = gl.getUniformLocation(LightingPassShaderProgram, "LightColour")
+    var LightingPassLightOnUniform = gl.getUniformLocation(LightingPassShaderProgram, "Light")
+
     var TAAPassWorldPositionBufferSampler = gl.getUniformLocation(TAAPassShaderProgram, "WorldPositionBuffer")
     var TAAPassDepthBufferSampler = gl.getUniformLocation(TAAPassShaderProgram, "DepthBuffer")
     var TAAPassFrameBufferSamplers = gl.getUniformLocation(TAAPassShaderProgram, "Frames")
@@ -364,6 +369,7 @@
     // CAMERA
     var CameraPosition = vec4(0.0, 0.0, 0.0, 1.0)
     var CameraVelocity = vec4(0.0, 0.0, 0.0, 0.0)
+    var CameraAcceleration = vec4(0.0, 0.0, 0.0, 0.0)
 
     var CameraRotation = new Float32Array([0.0, 0.0, 0.0])
     var CameraAngularVelocity = new Float32Array([0.0, 0.0, 0.0])
@@ -569,6 +575,11 @@
         gl.uniform3iv(LightingPassSelectedVoxelUniform, IntersectionVoxelIndex);
         gl.uniformMatrix4fv(LightingPassViewToWorldUniform, false, (viewToWorldMatrix))
         gl.uniformMatrix4fv(LightingPassWorldToViewUniform, false, (worldToViewMatrix))
+
+        gl.uniform3fv(LightingPassLightDirectionUniform, [CameraForward[0], CameraForward[1], CameraForward[2]])
+        gl.uniform3fv(LightingPassLightPositionUniform,  [CameraPosition[0], CameraPosition[1], CameraPosition[2] ]);
+        gl.uniform3fv(LightingPassLightColourUniform, [ 1.0, 0.3, 0.1 ]);
+        gl.uniform1i(LightingPassLightOnUniform, LightOn ? 1 : 0)
 
         gl.bindVertexArray(screenGeometryVertexArray);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -802,7 +813,7 @@
         }
        
     //    setInterval(Loop, 33);
-      //  requestAnimationFrame(Loop)
+        requestAnimationFrame(Loop)
     }
 
     var APressed = false;
@@ -822,6 +833,8 @@
 
     var SpacePressed = false;
 
+    var LightOn = false;
+
     function PollInput() 
     {      
         var speed = 0.0125
@@ -830,14 +843,21 @@
             speed = 0.02;
         }
 
+        var CameraForwardXZ = [
+            CameraForward[0],
+            0.0,
+            CameraForward[2],
+            0.0
+        ]
+
         if (DPressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraRight,  speed))
         if (APressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraRight, -speed))
-        if (WPressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraForward, speed))
-        if (SPressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraForward, -speed))
-        if (QPressed) CameraVelocity[1] -= speed
-        if (EPressed) CameraVelocity[1] += speed
+        if (WPressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraForwardXZ, speed))
+        if (SPressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraForwardXZ, -speed))
+//        if (QPressed) CameraVelocity[1] -= speed
+//        if (EPressed) CameraVelocity[1] += speed
 
-        var lookSpeed = 0.0005
+        var lookSpeed = 0.001
         if (LeftArrowPressed)  CameraAngularVelocity[1] -= lookSpeed;
         if (RightArrowPressed) CameraAngularVelocity[1] += lookSpeed;
         if (UpArrowPressed)    CameraAngularVelocity[0] -= lookSpeed;
@@ -847,14 +867,73 @@
 
     function DoMovement() 
     {
-        /*
-        b = Math.sin(frameID * 0.1) + 1.0;
-        BoxColours[6] = Math.sin((frameID + 65324) * 0.1) + 1.0;;
-        BoxColours[7] = Math.sin((frameID + 123) * 0.1) + 1.0;;
-        BoxColours[8] = Math.sin((frameID + 1) * 0.1) + 1.0;;
-        */
+        var CharacterRadius= 3.0
+        var Gravity = 0.001;
+        var Jump = 0.03;
+
+        var VoxelUnderCamera = IntersectVolume(
+            VolumeSize,
+            VolumePosition,
+            VoxelTextureData,
+            CameraPosition,
+            [ 0.0, -1.0, 0.0 ]
+        )
+
+        var VoxelUnderCameraFast= [ 
+            (VolumeSize[0] * 0.5) + Math.floor(CameraPosition[0]), 
+            (VolumeSize[1] * 0.5) + Math.floor(CameraPosition[1] - CharacterRadius + 0.1), 
+            (VolumeSize[2] * 0.5) + Math.floor(CameraPosition[2])];
+
+        if (VoxelUnderCamera[1] != VoxelUnderCameraFast[1])
+        {
+            console.log(VoxelUnderCameraFast + " | " + VoxelUnderCamera)
+        }
+
+        var GroundHeight = (-VolumeSize[1] * 0.5) + VoxelUnderCamera[1]
+ 
+
+  
+            if (CameraPosition[1] > GroundHeight + CharacterRadius || VoxelUnderCamera[2] == -1)
+            {
+                CameraAcceleration[1] -= Gravity;
+            }
+            else
+            {
+                CameraPosition[1] = GroundHeight + CharacterRadius
+                if (QPressed)
+                {
+                    CameraAcceleration[1] += Jump;
+                }
+            }
+        
+        QPressed = false;
+
+        var VoxelFrontOfCamera = IntersectVolume(
+            VolumeSize,
+            VolumePosition,
+            VoxelTextureData,
+            [CameraPosition[0], CameraPosition[1], CameraPosition[2]],
+            [0.0, 0.0, 1.0]
+        )
+
+        if (VoxelFrontOfCamera[0] != -1)
+        {
+            var DistanceToVoxelFront = Math.abs((-VolumeSize[2] * 0.5) + VoxelFrontOfCamera[2] - (CameraPosition[1] - 0.75))
+            if (CameraPosition[2] + DistanceToVoxelFront < CharacterRadius)
+            {
+                CameraVelocity[2] = Math.max(0.0, CameraVelocity[2]);
+            }
+        }
+
+
         CameraPosition = addv(CameraPosition, CameraVelocity)
+        CameraVelocity = addv(CameraVelocity, CameraAcceleration)
         CameraVelocity = multiplys(CameraVelocity, 0.9)
+        CameraAcceleration = multiplys(CameraAcceleration, 0.9)
+
+        // SCREEN SHAKE
+        CameraAngularVelocity[0] += Math.sin(frameID * 0.05) * 0.000025
+        CameraAngularVelocity[1] += Math.cos((frameID + 12)* 0.05) * 0.000025
 
         CameraRotation = addv(CameraRotation, CameraAngularVelocity)
         CameraAngularVelocity = multiplys(CameraAngularVelocity, 0.9)
@@ -892,8 +971,6 @@
             else if (event.key == 'd') DPressed = !DPressed
             else if (event.key == 's') SPressed = !SPressed
             else if (event.key == 'w') WPressed = !WPressed
-            else if (event.key == 'q') QPressed = !QPressed
-            else if (event.key == 'e') EPressed = !EPressed
             else if (event.key == 'ArrowLeft')  LeftArrowPressed  = !LeftArrowPressed
             else if (event.key == 'ArrowRight') RightArrowPressed = !RightArrowPressed
             else if (event.key == 'ArrowUp')    UpArrowPressed    = !UpArrowPressed
@@ -901,6 +978,7 @@
             else if (event.key == 'Shift') ShiftPressed = !ShiftPressed;
             else if (event.key == ' ') SpacePressed = !SpacePressed;
         }
+
     }
 
     function handleKeyDown (event)
@@ -912,8 +990,20 @@
 
         if (event.key == 'r')
         {
-            CameraPosition = vec4(0.0, 0.0, 0.0, 0.0);
-            CameraRotation = new Float32Array([0.0, 0.0, 0.0]);
+            CameraPosition = vec4(31.0, -14.0, 31.0, 0.0);
+            CameraRotation = new Float32Array([0.0,-0.7, -0.5]);
+            LightOn = false;
+        }
+
+
+        if (event.key == 'q')
+        {
+            QPressed = true;
+        }
+
+        if (event.key == 'f')
+        {
+            LightOn = !LightOn
         }
     }
 
@@ -946,5 +1036,6 @@
     }
     
     BuildScene()
-    setInterval(Loop, 16);
+    requestAnimationFrame(Loop)
+//    setInterval(Loop, 16);
 }())

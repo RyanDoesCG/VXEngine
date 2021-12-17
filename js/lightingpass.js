@@ -34,6 +34,11 @@ var LightingPassFragmentShaderHeaderSource =
     uniform mat4 ViewToWorld;
     uniform mat4 WorldToView;
 
+    uniform int Light;
+    uniform vec3 LightDirection;
+    uniform vec3 LightPosition;
+    uniform vec3 LightColour;
+
     in vec2 frag_uvs;
 
     out vec4 out_color;
@@ -93,18 +98,17 @@ var LightingPassFragmentShaderFooterSource = `
             out_color.w = 1.0;
             return;
         }
-
         out_color = Albedo;
 
+        if (Light == 1)
         {
-            Ray BounceRay;
-            BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
-            BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
-            Hit BounceHit = IntersectVoxelsLinear(BounceRay);
-            if (BounceHit.t < BIG_NUMBER)
+            vec3 RayDir = normalize(Position.xyz - CameraPosition.xyz);
+            vec3 ToLightDir = normalize(LightPosition.xyz - Position.xyz);
+            float attenuation = 100.0 - distance(Position.xyz, LightPosition.xyz);
+            float d = pow(dot(RayDir, LightDirection), 100.0) * 1.0;
             {
-                //out_color.xyz += BounceHit.colour;
-                out_color.xyz *= 0.1;
+                float Lighting = (d * max(0.0, dot(ToLightDir, Normal.xyz)) * (attenuation / 100.0) * 40.0);
+                out_color += Lighting + random(-1.0, 1.0) * 1.0;
             }
         }
 
@@ -116,12 +120,22 @@ var LightingPassFragmentShaderFooterSource = `
             if (BounceHit.t < BIG_NUMBER)
             {
                 //out_color.xyz += BounceHit.colour;
-                out_color.xyz *= 0.1;
+                out_color.xyz *= 0.01;
+            }
+        }
+        {
+            Ray BounceRay;
+            BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
+            BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
+            Hit BounceHit = IntersectVoxelsLinear(BounceRay);
+            if (BounceHit.t < BIG_NUMBER)
+            {
+                //out_color.xyz += BounceHit.colour;
+                out_color.xyz *= 0.01;
             }
         }
 
 
-        
         float gamma = 2.2;
         out_color.rgb = pow(out_color.rgb, vec3(1.0/gamma));
 
