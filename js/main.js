@@ -188,6 +188,7 @@
     var basePassCameraPositionUniform = gl.getUniformLocation(basePassShaderProgram, "CameraPosition")
     var basePassVolumePositionUniform = gl.getUniformLocation(basePassShaderProgram, "VolumePosition")
     var basePassVolumeSizeUniform = gl.getUniformLocation(basePassShaderProgram, "VolumeSize")
+    var basePassSelectedVoxelUniform = gl.getUniformLocation(basePassShaderProgram, "SelectedVoxel")
     var basePassPerlinNoiseSampler = gl.getUniformLocation(basePassShaderProgram, "PerlinNoise");
 
     var basePassVoxelTextureSampler = gl.getUniformLocation(basePassShaderProgram, "VoxelTexture")
@@ -213,7 +214,7 @@
     var LightingPassViewToWorldUniform = gl.getUniformLocation(LightingPassShaderProgram, "ViewToWorld");
     var LightingPassWorldToViewUniform = gl.getUniformLocation(LightingPassShaderProgram, "WorldToView")
     var LightingPassShadingModeUniform = gl.getUniformLocation(LightingPassShaderProgram, "ShadingMode")
-
+    var LightingPassSelectedVoxelUniform = gl.getUniformLocation(LightingPassShaderProgram, "SelectedVoxel")
     var LightingPassVoxelTextureUniform = gl.getUniformLocation(LightingPassShaderProgram, "VoxelTexture");
 
     var TAAPassWorldPositionBufferSampler = gl.getUniformLocation(TAAPassShaderProgram, "WorldPositionBuffer")
@@ -322,11 +323,11 @@
         Volume = multiplym(translate(VolumePosition[0], VolumePosition[1], VolumePosition[2]), Volume);
     }
 
-    var CameraRayIntersection = [0, 0, 0]
+    var IntersectionVoxelIndex = [ -1, -1, -1 ]
 
     function UpdateScene()
     {
-        var IntersectionVoxelIndex = IntersectVolume(
+        IntersectionVoxelIndex = IntersectVolume(
             VolumeSize,
             VolumePosition,
             VoxelTextureData,
@@ -468,7 +469,7 @@
         gl.uniform4fv(basePassCameraPositionUniform, CameraPosition)
         gl.uniform3fv(basePassVolumePositionUniform, VolumePosition)
         gl.uniform3fv(basePassVolumeSizeUniform, VolumeSize)
-
+        gl.uniform3iv(basePassSelectedVoxelUniform,IntersectionVoxelIndex);
         gl.bindVertexArray(boxGeometryVertexArray);
 
         gl.uniformMatrix4fv(basePassTransformLocation, false, Volume);
@@ -565,7 +566,7 @@
         gl.uniform4fv(LightingPassCameraPositionUniform, CameraPosition);
         gl.uniform3fv(LightingPassVolumePositionUniform, VolumePosition);
         gl.uniform3fv(LightingPassVolumeSizeUniform, VolumeSize);
-        
+        gl.uniform3iv(LightingPassSelectedVoxelUniform, IntersectionVoxelIndex);
         gl.uniformMatrix4fv(LightingPassViewToWorldUniform, false, (viewToWorldMatrix))
         gl.uniformMatrix4fv(LightingPassWorldToViewUniform, false, (worldToViewMatrix))
 
@@ -741,9 +742,10 @@
     var hideUI = false;
     var frameID = 1;
 
-    function Loop (now) 
+    function Loop () 
     {
-        let TimeSinceLastUpdate = now - then;
+        let now = new Date().getMilliseconds();
+        let TimeSinceLastUpdate = Math.abs(now - then);
         then = now
 
         PollInput();

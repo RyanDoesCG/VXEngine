@@ -31,9 +31,6 @@ var LightingPassFragmentShaderHeaderSource =
     uniform float Time;
     uniform vec4 CameraPosition;
 
-    uniform vec3 VolumePosition;
-    uniform vec3 VolumeSize;
-
     uniform mat4 ViewToWorld;
     uniform mat4 WorldToView;
 
@@ -45,17 +42,28 @@ var LightingPassFragmentShaderHeaderSource =
 `
 
 var LightingPassFragmentShaderFooterSource = `
+
+    #define GOLDEN_RATIO 1.61803398875
+
     float seed = 0.0;
     float random ()
     {
+        /*
+        seed += 0.01;
+        float noise = texture(BlueNoise, frag_uvs + vec2(seed)).r;
+        noise = mod(noise + GOLDEN_RATIO * (mod(Time * 2.0, 100.0)), 1.0);
+        return noise;
+        */
+        
         seed += 0.01;
         return texture(
             BlueNoise, 
             vec2(sin(Time * 1.0), cos(Time * 1.0)) * 0.1
                 + 
-            (frag_uvs * 1.5) 
+            (frag_uvs) 
                 + 
             vec2(seed)).x;
+        
     }
 
     float random (float min, float max)
@@ -100,20 +108,19 @@ var LightingPassFragmentShaderFooterSource = `
             }
         }
 
+        {
+            Ray BounceRay;
+            BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
+            BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
+            Hit BounceHit = IntersectVoxelsLinear(BounceRay);
+            if (BounceHit.t < BIG_NUMBER)
+            {
+                //out_color.xyz += BounceHit.colour;
+                out_color.xyz *= 0.1;
+            }
+        }
 
 
-        //{
-        //    Ray BounceRay;
-        //    BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
-        //    BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
-//
-        //    Hit BounceHit = IntersectVoxelsLinear(BounceRay);
-        //    if (BounceHit.t < BIG_NUMBER)
-        //    {
-        //        //out_color.xyz += BounceHit.colour;
-        //        out_color.xyz *= 0.25;
-        //    }
-        //}
         
         float gamma = 2.2;
         out_color.rgb = pow(out_color.rgb, vec3(1.0/gamma));

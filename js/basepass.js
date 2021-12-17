@@ -66,8 +66,6 @@ var basePassFragmentShaderSourceHeader =
     in vec3 frag_raydir;
 
     uniform vec4 CameraPosition;
-    uniform vec3 VolumePosition;
-    uniform vec3 VolumeSize;
 
     uniform int ShouldJitter;
     uniform float Time;
