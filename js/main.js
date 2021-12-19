@@ -340,7 +340,7 @@
             CameraForward
         )
 
-        if (IntersectionVoxelIndex[0] != -1 && SpacePressed)
+        if (IntersectionVoxelIndex[0] != -1 && EPressed)
         {
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_3D, VoxelTexture);
@@ -398,6 +398,8 @@
     var CameraForward = FORWARD;
     var CameraRight = RIGHT;
     var CameraUp = UP;
+
+    
 
     function ComputeView () 
     {
@@ -578,7 +580,7 @@
 
         gl.uniform3fv(LightingPassLightDirectionUniform, [CameraForward[0], CameraForward[1], CameraForward[2]])
         gl.uniform3fv(LightingPassLightPositionUniform,  [CameraPosition[0], CameraPosition[1], CameraPosition[2] ]);
-        gl.uniform3fv(LightingPassLightColourUniform, [ 1.0, 0.3, 0.1 ]);
+        gl.uniform3fv(LightingPassLightColourUniform, [ 1.0, 1.0, 1.0 ]);
         gl.uniform1i(LightingPassLightOnUniform, LightOn ? 1 : 0)
 
         gl.bindVertexArray(screenGeometryVertexArray);
@@ -900,13 +902,13 @@
             else
             {
                 CameraPosition[1] = GroundHeight + CharacterRadius
-                if (QPressed)
+                if (SpacePressed)
                 {
                     CameraAcceleration[1] += Jump;
                 }
             }
         
-        QPressed = false;
+        SpacePressed = false;
 
         var VoxelFrontOfCamera = IntersectVolume(
             VolumeSize,
@@ -976,7 +978,8 @@
             else if (event.key == 'ArrowUp')    UpArrowPressed    = !UpArrowPressed
             else if (event.key == 'ArrowDown')  DownArrowPressed  = !DownArrowPressed
             else if (event.key == 'Shift') ShiftPressed = !ShiftPressed;
-            else if (event.key == ' ') SpacePressed = !SpacePressed;
+           // else if (event.key == ' ') SpacePressed = !SpacePressed;
+            else if (event.key == 'e') EPressed = !EPressed
         }
 
     }
@@ -996,9 +999,9 @@
         }
 
 
-        if (event.key == 'q')
+        if (event.key == ' ')
         {
-            QPressed = true;
+            SpacePressed = true;
         }
 
         if (event.key == 'f')

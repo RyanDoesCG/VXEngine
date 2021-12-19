@@ -107,8 +107,8 @@ var LightingPassFragmentShaderFooterSource = `
             float attenuation = 100.0 - distance(Position.xyz, LightPosition.xyz);
             float d = pow(dot(RayDir, LightDirection), 100.0) * 1.0;
             {
-                float Lighting = (d * max(0.0, dot(ToLightDir, Normal.xyz)) * (attenuation / 100.0) * 40.0);
-                out_color += Lighting + random(-1.0, 1.0) * 1.0;
+                vec3 Lighting = LightColour * (d * max(0.0, dot(ToLightDir, Normal.xyz)) * (attenuation / 100.0) * 40.0);
+                out_color += vec4(Lighting, 1.0) + random(-1.0, 1.0) * 1.0;
             }
         }
 
