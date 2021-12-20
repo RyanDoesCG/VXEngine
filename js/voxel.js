@@ -412,6 +412,9 @@ voxelShaderSource = `
                 return intersectRayVoxel(primary, VoxelIndex);
             }
 
+            int MAX = 256;
+            int i = 0;
+
             while (VoxelIndex != ExitVoxel)
             {
                 if (tMaxX < tMaxY)
@@ -450,6 +453,13 @@ voxelShaderSource = `
                 if (testVoxel(VoxelIndex))
                 {
                     return intersectRayVoxel(primary, VoxelIndex);
+                }
+
+                ++i;
+
+                if (i > MAX)
+                {
+                    break;
                 }
             }     
         }  
@@ -569,7 +579,8 @@ function IntersectBoundingBox (Size, Position, RayPosition, RayDirection)
 function TestVoxel (VoxelIndex, VolumeData, VolumeSize)
 {
     // ASSUMES UNIFORM GRID SIZE
-    return VolumeData[VoxelIndex[0] + VoxelIndex[1] * VolumeSize[0] + VoxelIndex[2] * VolumeSize[0] * VolumeSize[0]] == 255
+    return VolumeData[
+        VoxelIndex[0] + VoxelIndex[1] * VolumeSize[0] + VoxelIndex[2] * VolumeSize[2] * VolumeSize[1]] == 255
 }
 
 function IntersectVolume (VolumeSize, VolumePosition, VolumeData, RayPosition, RayDirection)

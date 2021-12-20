@@ -65,7 +65,7 @@ function createBitmapTexture(gl, pixels)
     return texture;
 }
 
-function createVolumeTexture(gl, data, SIZE)
+function createVolumeTexture(gl, data, Size)
 {
     var texture = gl.createTexture();
     gl.activeTexture(gl.TEXTURE0);
@@ -80,9 +80,9 @@ function createVolumeTexture(gl, data, SIZE)
         gl.TEXTURE_3D, 
         0, 
         gl.R8,
-        SIZE, 
-        SIZE, 
-        SIZE,
+        Size[0], 
+        Size[1], 
+        Size[2],
         0, 
         gl.RED, 
         gl.UNSIGNED_BYTE,

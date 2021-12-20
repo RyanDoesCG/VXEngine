@@ -6,7 +6,7 @@ function noise (x, y)
     let xAddress = Math.floor(Math.abs(x) % 63)
     let yAddress = Math.floor(Math.abs(y) % 63)
 
-    return ((rawNoiseData[xAddress][yAddress]) - 78)
+    return ((rawNoiseData[xAddress][yAddress]) - 78)  
 }
 
 //////////////////////////////////////

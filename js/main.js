@@ -306,27 +306,29 @@
 
     function BuildScene()
     {
-        let SIZE = 64;
-        VolumeSize = [SIZE, SIZE, SIZE]
-        VoxelTextureData = new Uint8Array(SIZE * SIZE * SIZE);
-        for (var z = 0; z < SIZE; ++z) {
-            for (var y = 0; y < SIZE; ++y) {
-                for (var x = 0; x < SIZE; ++x) {
-
-                    let height = Math.max(noise(x * 0.5, z * 0.5) * 0.5, SIZE * 0.25);
+        VolumeSize = [128.0, 32.0, 128.0]
+        VoxelTextureData = new Uint8Array(VolumeSize[0] * VolumeSize[1] * VolumeSize[2]);
+        for (var z = 0; z < VolumeSize[2]; ++z) 
+        {
+            for (var y = 0; y < VolumeSize[1]; ++y) 
+            {
+                for (var x = 0; x < VolumeSize[0]; ++x) 
+                {
+                    //let height = VolumeSize[1] * 0.5 + ((Math.sin(x * 0.1) + Math.cos(z * 0.1)) * 4.0);
+                    let height = Math.max(noise((x / VolumeSize[0]) * 100.0, (z / VolumeSize[2]) * 100.0) * 0.5, VolumeSize[1] * 0.25)
                     if (y < height)
                     {
-                        VoxelTextureData[x + y * SIZE + z * SIZE * SIZE] = 255;
+                        VoxelTextureData[x + y * VolumeSize[0] + z * VolumeSize[2] * VolumeSize[1]] = 255;
                     }
                     else
                     {
-                        VoxelTextureData[x + y * SIZE + z * SIZE * SIZE] = 0;
+                        VoxelTextureData[x + y * VolumeSize[0] + z * VolumeSize[2] * VolumeSize[1]] = 0;
                     }    
                 }
             }
         }
 
-        VoxelTexture = createVolumeTexture(gl, VoxelTextureData, SIZE);
+        VoxelTexture = createVolumeTexture(gl, VoxelTextureData, VolumeSize);
 
         Volume = identity();
         Volume = multiplym(scale(VolumeSize[0] * 0.5, VolumeSize[1] * 0.5, VolumeSize[2] * 0.5), Volume);
@@ -337,38 +339,42 @@
 
     function UpdateScene()
     {
-        IntersectionVoxelIndex = IntersectVolume(
-            VolumeSize,
-            VolumePosition,
-            VoxelTextureData,
-            CameraPosition,
-            CameraForward
-        )
-
-        if (IntersectionVoxelIndex[0] != -1 && EPressed)
+        if (SpacePressed)
         {
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_3D, VoxelTexture);
-        
-            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_BASE_LEVEL, 0);
-            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAX_LEVEL, 0);
-            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);        
-
-            VoxelTextureData[IntersectionVoxelIndex[0] + IntersectionVoxelIndex[1]  * VolumeSize[0] + IntersectionVoxelIndex[2] * VolumeSize[0] * VolumeSize[0]] = 0;
-            gl.texSubImage3D(
-                gl.TEXTURE_3D,
-                0, 
-                IntersectionVoxelIndex[0], 
-                IntersectionVoxelIndex[1], 
-                IntersectionVoxelIndex[2], 
-                1, 
-                1, 
-                1, 
-                gl.RED, 
-                gl.UNSIGNED_BYTE, 
-                new Uint8Array([ 0 ]));
+            IntersectionVoxelIndex = IntersectVolume(
+                VolumeSize,
+                VolumePosition,
+                VoxelTextureData,
+                CameraPosition,
+                CameraForward
+            )
+    
+            if (IntersectionVoxelIndex[0] != -1)
+            {
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_3D, VoxelTexture);
+            
+                gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_BASE_LEVEL, 0);
+                gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAX_LEVEL, 0);
+                gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);        
+    
+                VoxelTextureData[IntersectionVoxelIndex[0] + IntersectionVoxelIndex[1]  * VolumeSize[0] + IntersectionVoxelIndex[2] * VolumeSize[2] * VolumeSize[1]] = 0;
+                gl.texSubImage3D(
+                    gl.TEXTURE_3D,
+                    0, 
+                    IntersectionVoxelIndex[0], 
+                    IntersectionVoxelIndex[1], 
+                    IntersectionVoxelIndex[2], 
+                    1, 
+                    1, 
+                    1, 
+                    gl.RED, 
+                    gl.UNSIGNED_BYTE, 
+                    new Uint8Array([ 0 ]));
+            }  
         }
+
     }
     
     // CAMERA
@@ -861,8 +867,8 @@
         if (APressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraRight, -speed))
         if (WPressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraForwardXZ, speed))
         if (SPressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraForwardXZ, -speed))
-//        if (QPressed) CameraVelocity[1] -= speed
-//        if (EPressed) CameraVelocity[1] += speed
+        if (QPressed) CameraVelocity[1] -= speed
+        if (EPressed) CameraVelocity[1] += speed
 
         var lookSpeed = 0.001
         if (LeftArrowPressed)  CameraAngularVelocity[1] -= lookSpeed;
@@ -886,33 +892,33 @@
         //    [ 0.0, -1.0, 0.0 ]
         //)
 
-        var VoxelUnderCamera = [ 
-            (VolumeSize[0] * 0.5) + Math.floor(CameraPosition[0]), 
-            (VolumeSize[1] * 0.5) + Math.floor(CameraPosition[1] - CharacterRadius + 0.1), 
-            (VolumeSize[2] * 0.5) + Math.floor(CameraPosition[2])];
-        var GroundHeight = (-VolumeSize[1] * 0.5) + VoxelUnderCamera[1]
-        if (CameraPosition[1] > GroundHeight + CharacterRadius || !TestVoxel(VoxelUnderCamera, VoxelTextureData, VolumeSize))
-        {
-            CameraAcceleration[1] -= Gravity;
-        }
-        else
-        {
-            CameraPosition[1] = GroundHeight + CharacterRadius
-            if (SpacePressed)
-            {
-                CameraAcceleration[1] += Jump;
-            }
-        }
-        SpacePressed = false;
+        //var VoxelUnderCamera = [ 
+        //    (VolumeSize[0] * 0.5) + Math.floor(CameraPosition[0]), 
+        //    (VolumeSize[1] * 0.5) + Math.floor(CameraPosition[1] - CharacterRadius + 0.1), 
+        //    (VolumeSize[2] * 0.5) + Math.floor(CameraPosition[2])];
+        //var GroundHeight = (-VolumeSize[1] * 0.5) + VoxelUnderCamera[1]
+        //if (CameraPosition[1] > GroundHeight + CharacterRadius || !TestVoxel(VoxelUnderCamera, VoxelTextureData, VolumeSize))
+        //{
+        //    CameraAcceleration[1] -= Gravity;
+        //}
+        //else
+        //{
+        //    CameraPosition[1] = GroundHeight + CharacterRadius
+        //    if (SpacePressed)
+        //    {
+        //        CameraAcceleration[1] += Jump;
+        //    }
+        //}
+        //SpacePressed = false;
 
         CameraPosition = addv(CameraPosition, CameraVelocity)
         CameraVelocity = addv(CameraVelocity, CameraAcceleration)
         CameraVelocity = multiplys(CameraVelocity, 0.9)
         CameraAcceleration = multiplys(CameraAcceleration, 0.9)
 
-        // SCREEN SHAKE
-        CameraAngularVelocity[0] += Math.sin(frameID * 0.05) * 0.000025
-        CameraAngularVelocity[1] += Math.cos((frameID + 12)* 0.05) * 0.000025
+        //// SCREEN SHAKE
+        //CameraAngularVelocity[0] += Math.sin(frameID * 0.05) * 0.000025
+        //CameraAngularVelocity[1] += Math.cos((frameID + 12)* 0.05) * 0.000025
 
         CameraRotation = addv(CameraRotation, CameraAngularVelocity)
         CameraAngularVelocity = multiplys(CameraAngularVelocity, 0.9)
@@ -955,8 +961,9 @@
             else if (event.key == 'ArrowUp')    UpArrowPressed    = !UpArrowPressed
             else if (event.key == 'ArrowDown')  DownArrowPressed  = !DownArrowPressed
             else if (event.key == 'Shift') ShiftPressed = !ShiftPressed;
-           // else if (event.key == ' ') SpacePressed = !SpacePressed;
+            else if (event.key == ' ') SpacePressed = !SpacePressed;
             else if (event.key == 'e') EPressed = !EPressed
+            else if (event.key == 'q') QPressed = !QPressed
         }
 
     }
