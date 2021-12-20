@@ -181,8 +181,8 @@ function loadTexture(gl, texturePath)
     const image = new Image();
     image.src = texturePath;
     image.onload = function() {
-        console.log(image.src)
-        console.log(" ")
+     //   console.log(image.src)
+     //   console.log(" ")
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image);
         ImagesLoaded[index] = true;

@@ -13,7 +13,7 @@
     var size = document.getElementById("size")
 
     var extensions = gl.getSupportedExtensions();
-    console.log(extensions)
+    //console.log(extensions)
     gl.getExtension('EXT_color_buffer_float');
 
     let FORWARD = vec4(0.0, 0.0, -1.0, 0.0);
@@ -21,7 +21,6 @@
     let UP = vec4(0.0, 1.0, 0.0, 0.0);
 
     // SHADERS
-    console.log(basePassVertexShaderSource)
     var basePassShaderProgram  = createProgram (gl, 
         createShader  (gl, gl.VERTEX_SHADER,   basePassVertexShaderSource), 
         createShader  (gl, gl.FRAGMENT_SHADER, basePassFragmentShaderSourceHeader + voxelShaderSource + basePassFragmentShaderSourceBody));
@@ -174,6 +173,12 @@
     var WhiteNoiseTexture = loadTexture(gl, 'images/noise/white.png')
     var BlueNoiseTexture = loadTexture(gl, 'images/noise/blue.png')
 
+    var STBNBlueNoiseTextures = []
+    for (var i = 0; i < 64; ++i)
+    {
+        STBNBlueNoiseTextures.push(loadTexture(gl, 'images/noise/STBN/stbn_scalar_2Dx1Dx1D_128x128x64x1_' + i + '.png'))
+    }
+
     var VoxelTextureData
     var VoxelTexture
 
@@ -189,7 +194,7 @@
     var basePassVolumePositionUniform = gl.getUniformLocation(basePassShaderProgram, "VolumePosition")
     var basePassVolumeSizeUniform = gl.getUniformLocation(basePassShaderProgram, "VolumeSize")
     var basePassSelectedVoxelUniform = gl.getUniformLocation(basePassShaderProgram, "SelectedVoxel")
-    var basePassPerlinNoiseSampler = gl.getUniformLocation(basePassShaderProgram, "PerlinNoise");
+   // var basePassPerlinNoiseSampler = gl.getUniformLocation(basePassShaderProgram, "PerlinNoise");
 
     var basePassVoxelTextureSampler = gl.getUniformLocation(basePassShaderProgram, "VoxelTexture")
 
@@ -198,7 +203,7 @@
     var LightingPassNearUniform = gl.getUniformLocation(LightingPassShaderProgram, "near")
     var LightingPassFarUniform = gl.getUniformLocation(LightingPassShaderProgram, "far")
     var LightingPassJitterUniform = gl.getUniformLocation(LightingPassShaderProgram, "ShouldJitter");
-    var LightingPassPerlinNoiseSampler = gl.getUniformLocation(LightingPassShaderProgram, "PerlinNoise")
+   // var LightingPassPerlinNoiseSampler = gl.getUniformLocation(LightingPassShaderProgram, "PerlinNoise")
     var LightingPassWhiteNoiseSampler = gl.getUniformLocation(LightingPassShaderProgram, "WhiteNoise")
     var LightingPassBlueNoiseSampler= gl.getUniformLocation(LightingPassShaderProgram, "BlueNoise")
 
@@ -465,9 +470,9 @@
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_3D, VoxelTexture);
 
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, PerlinNoiseTexture);
-        gl.uniform1i(basePassPerlinNoiseSampler, 1);
+        //gl.activeTexture(gl.TEXTURE1);
+        //gl.bindTexture(gl.TEXTURE_2D, PerlinNoiseTexture);
+        //gl.uniform1i(basePassPerlinNoiseSampler, 1);
 
         gl.uniform2fv(basePassWindowSizeLocation, [canvas.width, canvas.height])
         gl.uniform1f(basePassTimeUniform, frameID);
@@ -553,16 +558,16 @@
         gl.bindTexture(gl.TEXTURE_2D, worldposBuffer);
         gl.uniform1i(LightingPassUVSampler, 2);
 
-        gl.activeTexture(gl.TEXTURE3);
-        gl.bindTexture(gl.TEXTURE_2D, PerlinNoiseTexture);
-        gl.uniform1i(LightingPassPerlinNoiseSampler, 3);
+       // gl.activeTexture(gl.TEXTURE3);
+       // gl.bindTexture(gl.TEXTURE_2D, PerlinNoiseTexture);
+       // gl.uniform1i(LightingPassPerlinNoiseSampler, 3);
 
         gl.activeTexture(gl.TEXTURE4);
         gl.bindTexture(gl.TEXTURE_2D, WhiteNoiseTexture);
         gl.uniform1i(LightingPassWhiteNoiseSampler, 4);
 
         gl.activeTexture(gl.TEXTURE5);
-        gl.bindTexture(gl.TEXTURE_2D, BlueNoiseTexture);
+        gl.bindTexture(gl.TEXTURE_2D, STBNBlueNoiseTextures[frameID % 64]);
         gl.uniform1i(LightingPassBlueNoiseSampler, 5);
 
         gl.activeTexture(gl.TEXTURE6);
@@ -672,15 +677,15 @@
         
         // Using the anti-aliased image as the history sample
         // much better quality, bad ghosting
-        //gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
-        //gl.copyTexImage2D(
-        //    gl.TEXTURE_2D, 
-        //    0,
-        //    gl.RGBA, 
-        //    0, 0,
-        //    canvas.width,
-        //    canvas.height,
-        //    0);
+        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
+        gl.copyTexImage2D(
+            gl.TEXTURE_2D, 
+            0,
+            gl.RGBA, 
+            0, 0,
+            canvas.width,
+            canvas.height,
+            0);
     }
 
     function BlurPass()
@@ -873,60 +878,32 @@
         var Gravity = 0.001;
         var Jump = 0.03;
 
-        var VoxelUnderCamera = IntersectVolume(
-            VolumeSize,
-            VolumePosition,
-            VoxelTextureData,
-            CameraPosition,
-            [ 0.0, -1.0, 0.0 ]
-        )
+        //var VoxelUnderCamera = IntersectVolume(
+        //    VolumeSize,
+        //    VolumePosition,
+        //    VoxelTextureData,
+        //    CameraPosition,
+        //    [ 0.0, -1.0, 0.0 ]
+        //)
 
-        var VoxelUnderCameraFast= [ 
+        var VoxelUnderCamera = [ 
             (VolumeSize[0] * 0.5) + Math.floor(CameraPosition[0]), 
             (VolumeSize[1] * 0.5) + Math.floor(CameraPosition[1] - CharacterRadius + 0.1), 
             (VolumeSize[2] * 0.5) + Math.floor(CameraPosition[2])];
-
-        if (VoxelUnderCamera[1] != VoxelUnderCameraFast[1])
-        {
-            console.log(VoxelUnderCameraFast + " | " + VoxelUnderCamera)
-        }
-
         var GroundHeight = (-VolumeSize[1] * 0.5) + VoxelUnderCamera[1]
- 
-
-  
-            if (CameraPosition[1] > GroundHeight + CharacterRadius || VoxelUnderCamera[2] == -1)
-            {
-                CameraAcceleration[1] -= Gravity;
-            }
-            else
-            {
-                CameraPosition[1] = GroundHeight + CharacterRadius
-                if (SpacePressed)
-                {
-                    CameraAcceleration[1] += Jump;
-                }
-            }
-        
-        SpacePressed = false;
-
-        var VoxelFrontOfCamera = IntersectVolume(
-            VolumeSize,
-            VolumePosition,
-            VoxelTextureData,
-            [CameraPosition[0], CameraPosition[1], CameraPosition[2]],
-            [0.0, 0.0, 1.0]
-        )
-
-        if (VoxelFrontOfCamera[0] != -1)
+        if (CameraPosition[1] > GroundHeight + CharacterRadius || !TestVoxel(VoxelUnderCamera, VoxelTextureData, VolumeSize))
         {
-            var DistanceToVoxelFront = Math.abs((-VolumeSize[2] * 0.5) + VoxelFrontOfCamera[2] - (CameraPosition[1] - 0.75))
-            if (CameraPosition[2] + DistanceToVoxelFront < CharacterRadius)
+            CameraAcceleration[1] -= Gravity;
+        }
+        else
+        {
+            CameraPosition[1] = GroundHeight + CharacterRadius
+            if (SpacePressed)
             {
-                CameraVelocity[2] = Math.max(0.0, CameraVelocity[2]);
+                CameraAcceleration[1] += Jump;
             }
         }
-
+        SpacePressed = false;
 
         CameraPosition = addv(CameraPosition, CameraVelocity)
         CameraVelocity = addv(CameraVelocity, CameraAcceleration)
@@ -1015,7 +992,6 @@
     document.addEventListener('keydown', handleKeyDown);
 
     var CookieRecord = document.cookie;
-    //console.log(CookieRecord);
 
     var IndividualCookies = CookieRecord.split(' ');
     if (CookieRecord.includes("LastCameraX"))

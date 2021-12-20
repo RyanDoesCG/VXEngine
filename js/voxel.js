@@ -1,6 +1,6 @@
 voxelShaderSource = `
-    uniform sampler2D PerlinNoise;
     uniform sampler3D VoxelTexture;
+
     uniform vec3  VolumePosition;
     uniform vec3  VolumeSize;
     uniform ivec3 SelectedVoxel;

@@ -53,6 +53,11 @@ var LightingPassFragmentShaderFooterSource = `
     float seed = 0.0;
     float random ()
     {
+        seed += 0.01;
+
+        float tiling = 20.0;
+        float noise = texture(BlueNoise, frag_uvs * tiling + vec2(seed)).r;
+        return noise;
         /*
         seed += 0.01;
         float noise = texture(BlueNoise, frag_uvs + vec2(seed)).r;
@@ -60,6 +65,7 @@ var LightingPassFragmentShaderFooterSource = `
         return noise;
         */
         
+        /*
         seed += 0.01;
         return texture(
             BlueNoise, 
@@ -68,7 +74,7 @@ var LightingPassFragmentShaderFooterSource = `
             (frag_uvs) 
                 + 
             vec2(seed)).x;
-        
+        */
     }
 
     float random (float min, float max)
