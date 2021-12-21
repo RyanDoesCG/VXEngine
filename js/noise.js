@@ -3,10 +3,37 @@
 //////////////////////////////////////
 function noise (x, y)
 {
-    let xAddress = Math.floor(Math.abs(x) % 63)
-    let yAddress = Math.floor(Math.abs(y) % 63)
+    // 0 - 63
+    let xAddress = Math.floor(Math.abs(x))
+    let yAddress = Math.floor(Math.abs(y))
 
-    return ((rawNoiseData[xAddress][yAddress]) - 78)  
+    // 0 == 0 - 63 == 1
+    let xMapped = xAddress / 63.0;
+    let yMapped = yAddress / 63.0;
+
+    if (Math.floor(xMapped) % 2 != 0)
+    {
+        xMapped = 1.0 - (xMapped - Math.floor(xMapped))
+    }
+    else
+    {
+        xMapped = (xMapped - Math.floor(xMapped))
+    }
+
+    if (Math.floor(yMapped) % 2 != 0)
+    {
+        yMapped = 1.0 - (yMapped - Math.floor(yMapped))
+    }
+    else
+    {
+        yMapped = (yMapped - Math.floor(yMapped))
+    }
+
+
+
+    return ((rawNoiseData
+        [Math.max(Math.min(Math.floor(xMapped * 63), 63), 0)]
+        [Math.max(Math.min(Math.floor(yMapped * 63), 63), 0)]) - 78)  
 }
 
 //////////////////////////////////////

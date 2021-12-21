@@ -11,7 +11,10 @@
 
         <div id="ui"></div>
         <div id="notes">
-            <p>- Noise/Generation Improvements</p>
+            <p>- Optimize out box intersection tests</p>
+            <p>- TAA Smearing Improvements</p>
+            <p>- Explicit Lights</p>
+            <p>- Transparency Pass</p>
             <p>- Multiple Volumes </p>
             <p>- Physics </p>
         </div>
@@ -20,14 +23,12 @@
         <div id="loading"><p>loading</p></div>
 
         <div id="controls">
+            <input type="checkbox" id="AOOn" name="AOOn" checked>
+            <label for="AOOn">Ambient Occlusion</label>
             <br>
             <br>
-            <input type="checkbox" id="DoFOn" name="DoFOn" checked>
+            <input type="checkbox" id="DoFOn" name="DoFOn">
             <label for="DoFOn">DoF</label>
-            <br>
-            <br>
-            <input type="checkbox" id="MSAAOn" name="MSAAOn">
-            <label for="MSAAOn">MSAA</label>
             <br>
             <br>
             <input type="checkbox" id="TAAOn" name="TAAOn" checked>
@@ -40,7 +41,6 @@
         <script src="js/geometry.js"></script>
         <script src="js/voxel.js"></script>
         <script src="js/basepass.js"></script>
-        <script src="js/lightingpass.js"></script>
         <script src="js/taapass.js"></script>
         <script src="js/blurpass.js"></script>
         <script src="js/dofpass.js"></script>

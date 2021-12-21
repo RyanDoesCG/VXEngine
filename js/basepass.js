@@ -5,8 +5,6 @@ var basePassVertexShaderSource =
     precision highp float;
     precision highp int;
 
-    #define NUM_VOLUMES 1
-
     uniform mat4 proj;
     uniform mat4 view;
     uniform mat4 transform;
@@ -17,6 +15,8 @@ var basePassVertexShaderSource =
 
     uniform vec4 CameraPosition;
 
+    uniform sampler2D WhiteNoise;
+
     in vec3 vertex_position;
     in vec3 vertex_normal;
     in vec2 vertex_uv;
@@ -26,15 +26,15 @@ var basePassVertexShaderSource =
     out vec2 frag_uv;
     out vec3 frag_raydir;
 
-    float random (vec2 st) 
+    float random(vec2 uv)
     {
-        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-    }    
+        return texture(WhiteNoise, uv).r;
+    }
 
     void main() 
     {
-        float x = random(vec2(Time, 0.0) * 10.0);
-        float y = random(vec2(0.0, Time) * 10.0);
+        float x = random(vec2(Time, 0.0) * 0.2) * 1.0;
+        float y = random(vec2(0.0, Time) * 0.2) * 1.0;
 
         mat4 jitter_proj = proj;
         if (ShouldJitter == 1)
@@ -67,12 +67,37 @@ var basePassFragmentShaderSourceHeader =
 
     uniform vec4 CameraPosition;
 
+    uniform sampler2D BlueNoise;
+
+    uniform int ShouldAmbientOcclusion;
     uniform int ShouldJitter;
     uniform float Time;
 
     layout(location = 0) out vec4 out_color;
-    layout(location = 1) out vec4 out_normal;
-    layout(location = 2) out vec4 out_worldpos;
+    layout(location = 1) out vec4 out_worldpos;
+
+    float seed = 0.0;
+    float random ()
+    {
+        vec2 uv = gl_FragCoord.xy / vec2(512.0, 512.0);
+        seed += 0.01;
+        float tiling = 20.0;
+        float noise = texture(BlueNoise, uv * tiling + vec2(seed)).r;
+        return noise;
+    }
+
+    float random (float min, float max)
+    {
+        return min + random() * (max - min);
+    }
+
+    vec3 randomDirection()
+    {
+        float x = random(-1.0, 1.0);
+        float y = random(-1.0, 1.0);
+        float z = random(-1.0, 1.0);
+        return normalize(vec3(x, y, z));
+    }
 `
 
 var basePassFragmentShaderSourceBody = `
@@ -91,34 +116,65 @@ var basePassFragmentShaderSourceBody = `
         return mod(floor(uv.x) + floor(uv.y), 2.0);
     }
 
-    float random (vec2 st) 
-    {
-        return fract(sin(dot(st.xy + sin(Time * 0.1), vec2(12.9898,78.233))) * 43758.5453123);
-    }    
-
     void main() 
     {        
         vec3 rayjitter = vec3(0.0);
-        if (ShouldJitter == 1)
-        {
-            rayjitter = vec3(random(frag_uv.xy), random(frag_uv.yx), 0.0) * 0.00;
-        }
+        //if (ShouldJitter == 1)
+        //{
+        //    rayjitter = vec3(random(), random(), 0.0) * 0.0025;
+        //}
 
         Ray primaryRay;
         primaryRay.origin = CameraPosition.xyz;
         primaryRay.direction = normalize(frag_worldpos.xyz - CameraPosition.xyz) + rayjitter;
 
-       // out_color = vec4(0.01, 0.01, 0.01, 1.0);
-        
-       // Hit primaryHit = IntersectVoxelsLinear(primaryRay);
         Hit primaryHit = IntersectVoxelsStepping(primaryRay);
-       // Hit primaryHit = IntersectVoxelsHybrid(primaryRay);
-    
+       // Hit primaryHit = IntersectVoxelsLinear(primaryRay, 64);
+
         if (primaryHit.t < BIG_NUMBER)
         {
-            out_color    = vec4(primaryHit.colour, 1.0);
-            out_normal   = vec4((primaryHit.normal.xyz + 1.0) * 0.5, 1.0);
+            out_color = vec4(primaryHit.colour, 1.0);
+
+            if (ShouldAmbientOcclusion == 1)
+            {
+                if (!isLight(primaryHit.id))   
+                {
+                    {
+                        Ray BounceRay;
+                        BounceRay.origin = primaryHit.position.xyz + primaryHit.normal.xyz * 0.001;
+                        BounceRay.direction = normalize(primaryHit.normal.xyz + randomDirection()).xyz;
+                        Hit BounceHit = IntersectVoxelsLinear(BounceRay, 32);
+                        if (BounceHit.t < BIG_NUMBER)
+                        {
+                            out_color.xyz += BounceHit.colour;
+                            if (!isLight(BounceHit.id))
+                            {
+                                out_color.xyz *= 0.01;
+                            }
+                        }
+                    }
+
+                    {
+                        Ray BounceRay;
+                        BounceRay.origin = primaryHit.position.xyz + primaryHit.normal.xyz * 0.001;
+                        BounceRay.direction = normalize(primaryHit.normal.xyz + randomDirection()).xyz;
+                        Hit BounceHit = IntersectVoxelsLinear(BounceRay, 32);
+                        if (BounceHit.t < BIG_NUMBER)
+                        {
+                            out_color.xyz += BounceHit.colour;
+                            if (!isLight(BounceHit.id))
+                            {
+                                out_color.xyz *= 0.01;
+                            }
+                        }
+                    }
+                }
+            }
+            
             out_worldpos = vec4(primaryHit.position.xyz, primaryHit.t);
         }
+
+        float gamma = 2.2;
+        out_color.rgb = pow(out_color.rgb, vec3(1.0/gamma));
 
     }`

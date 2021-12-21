@@ -16,7 +16,6 @@ var TAAPassFragmentShaderHeaderSource =
     #define NFrames 15
 
     uniform sampler2D WorldPositionBuffer;
-    uniform sampler2D DepthBuffer;
 
     uniform sampler2D Frames[NFrames];
     uniform mat4      View0;
@@ -58,11 +57,13 @@ var TAAPassFragmentShaderFooterSource = `
     }
 
     void main() 
-{
+    {
         vec4 Result = vec4(0.0, 0.0, 0.0, 1.0);
 
         vec4 position = texture(WorldPositionBuffer, frag_uvs);
         position.w = 1.0;
+
+       // position = inverse(View0) * position;
 
         const float MaxWeight = 1.0;
         const float MinWeight = 0.25;

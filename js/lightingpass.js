@@ -118,29 +118,38 @@ var LightingPassFragmentShaderFooterSource = `
             }
         }
 
+        ivec3 VoxelID = positionToVoxelIndex(Position.xyz);
+       // if (!isLight(VoxelID))
         {
-            Ray BounceRay;
-            BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
-            BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
-            Hit BounceHit = IntersectVoxelsLinear(BounceRay);
-            if (BounceHit.t < BIG_NUMBER)
             {
-                //out_color.xyz += BounceHit.colour;
-                out_color.xyz *= 0.01;
+                Ray BounceRay;
+                BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
+                BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
+                Hit BounceHit = IntersectVoxelsLinear(BounceRay);
+                if (BounceHit.t < BIG_NUMBER)
+                {
+                    out_color.xyz += BounceHit.colour;
+                    if (!isLight(BounceHit.id))
+                    {
+                        out_color.xyz *= 0.01;
+                    }
+                }
+            }
+            {
+                Ray BounceRay;
+                BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
+                BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
+                Hit BounceHit = IntersectVoxelsLinear(BounceRay);
+                if (BounceHit.t < BIG_NUMBER)
+                {
+                    out_color.xyz += BounceHit.colour;
+                    if (!isLight(BounceHit.id))
+                    {
+                        out_color.xyz *= 0.01;
+                    }
+                }
             }
         }
-        {
-            Ray BounceRay;
-            BounceRay.origin = Position.xyz + Normal.xyz * 0.001;
-            BounceRay.direction = normalize(Normal.xyz + randomDirection()).xyz;
-            Hit BounceHit = IntersectVoxelsLinear(BounceRay);
-            if (BounceHit.t < BIG_NUMBER)
-            {
-                //out_color.xyz += BounceHit.colour;
-                out_color.xyz *= 0.01;
-            }
-        }
-
 
         float gamma = 2.2;
         out_color.rgb = pow(out_color.rgb, vec3(1.0/gamma));
