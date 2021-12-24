@@ -65,9 +65,12 @@ var basePassFragmentShaderSourceHeader =
     in vec2 frag_uv;
     in vec3 frag_raydir;
 
+    uniform vec2 WindowSize;
     uniform vec4 CameraPosition;
 
     uniform sampler2D BlueNoise;
+
+    uniform sampler2D TBuffer;
 
     uniform int ShouldAmbientOcclusion;
     uniform int ShouldJitter;
@@ -124,16 +127,29 @@ var basePassFragmentShaderSourceBody = `
         //    rayjitter = vec3(random(), random(), 0.0) * 0.0025;
         //}
 
+        vec2 screenUV = gl_FragCoord.xy / vec2(WindowSize.xy);
+
+        float t1 = distance(frag_worldpos.xyz, CameraPosition.xyz);
+        float t2 = texture(TBuffer, screenUV).r;
+
+        vec3 VolumeMin = VolumePosition + (-VolumeSize * 0.5);
+        vec3 VolumeMax = VolumePosition + ( VolumeSize * 0.5);
+        if (CameraPosition.x < VolumeMax.x && CameraPosition.x > VolumeMin.x && 
+            CameraPosition.y < VolumeMax.y && CameraPosition.y > VolumeMin.y &&
+            CameraPosition.z < VolumeMax.z && CameraPosition.z > VolumeMin.z)
+        {
+            t1 = 0.0;
+        }
+
         Ray primaryRay;
         primaryRay.origin = CameraPosition.xyz;
         primaryRay.direction = normalize(frag_worldpos.xyz - CameraPosition.xyz) + rayjitter;
 
-        Hit primaryHit = IntersectVoxelsStepping(primaryRay);
-       // Hit primaryHit = IntersectVoxelsLinear(primaryRay, 64);
+        Hit primaryHit = IntersectVoxelsStepping(primaryRay, t1, t2, frag_normal.xyz);
 
         if (primaryHit.t < BIG_NUMBER)
         {
-            out_color = vec4(primaryHit.colour, 1.0);
+            out_color = vec4(primaryHit.colour, 0.5);
 
             if (ShouldAmbientOcclusion == 1)
             {
@@ -143,13 +159,17 @@ var basePassFragmentShaderSourceBody = `
                         Ray BounceRay;
                         BounceRay.origin = primaryHit.position.xyz + primaryHit.normal.xyz * 0.001;
                         BounceRay.direction = normalize(primaryHit.normal.xyz + randomDirection()).xyz;
-                        Hit BounceHit = IntersectVoxelsLinear(BounceRay, 32);
+                        Hit BounceHit = IntersectVoxelsLinear(BounceRay, 0.0, 2.0, 4);
                         if (BounceHit.t < BIG_NUMBER)
                         {
                             out_color.xyz += BounceHit.colour;
                             if (!isLight(BounceHit.id))
                             {
                                 out_color.xyz *= 0.01;
+                            }
+                            else
+                            {
+                                out_color.xyz += BounceHit.colour;
                             }
                         }
                     }
@@ -158,13 +178,17 @@ var basePassFragmentShaderSourceBody = `
                         Ray BounceRay;
                         BounceRay.origin = primaryHit.position.xyz + primaryHit.normal.xyz * 0.001;
                         BounceRay.direction = normalize(primaryHit.normal.xyz + randomDirection()).xyz;
-                        Hit BounceHit = IntersectVoxelsLinear(BounceRay, 32);
+                        Hit BounceHit = IntersectVoxelsLinear(BounceRay, 4.0, 100.0, 8);
                         if (BounceHit.t < BIG_NUMBER)
                         {
                             out_color.xyz += BounceHit.colour;
                             if (!isLight(BounceHit.id))
                             {
                                 out_color.xyz *= 0.01;
+                            }
+                            else
+                            {
+                                out_color.xyz += BounceHit.colour;
                             }
                         }
                     }

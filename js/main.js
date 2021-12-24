@@ -1,6 +1,9 @@
 
 (function () 
 {
+
+    InitNoise();
+
     let AO   = document.getElementById('AOOn')
     let TAA  = document.getElementById('TAAOn')
     let DoF  = document.getElementById('DoFOn')
@@ -21,6 +24,10 @@
     let UP = vec4(0.0, 1.0, 0.0, 0.0);
 
     // SHADERS
+    var prePassShaderProgram = createProgram(gl, 
+        createShader (gl, gl.VERTEX_SHADER, prePassVertexShaderSource),
+        createShader (gl, gl.FRAGMENT_SHADER, prePassFragmentShaderSource))
+
     var basePassShaderProgram  = createProgram (gl, 
         createShader  (gl, gl.VERTEX_SHADER,   basePassVertexShaderSource), 
         createShader  (gl, gl.FRAGMENT_SHADER, basePassFragmentShaderSourceHeader + voxelShaderSource + basePassFragmentShaderSourceBody));
@@ -40,6 +47,7 @@
         createShader(gl, gl.FRAGMENT_SHADER, DoFFragmentShaderSource))
 
     // FRAME BUFFERS
+    var prepassBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
     var worldposBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
 
     // TAA History
@@ -59,6 +67,7 @@
     for (var i = 0; i < NumHistorySamples; ++i)
         ViewTransforms[i] = identity()
 
+    var prePassFrameBuffer = createFramebuffer(gl, prepassBuffer)
     var basePassFrameBuffer
 
     // TAA History
@@ -82,6 +91,15 @@
     var VoxelTexture
 
     // UNIFORMS
+    var prePassProjectionMatrixLocation      = gl.getUniformLocation(prePassShaderProgram, "proj")
+    var prePassViewMatrixLocation            = gl.getUniformLocation(prePassShaderProgram, "view")
+    var prePassTransformMatrixLocation       = gl.getUniformLocation(prePassShaderProgram, "transform")
+    var prePassTimeUniformLocation           = gl.getUniformLocation(prePassShaderProgram, "Time")
+    var prePassWindowSizeUniformLocation     = gl.getUniformLocation(prePassShaderProgram, "WindowSize")
+    var prePassShouldJitterUniformLocation   = gl.getUniformLocation(prePassShaderProgram, "ShouldJitter")
+    var prePassCameraPositionUniformLocation = gl.getUniformLocation(prePassShaderProgram, "CameraPosition")
+    var prePassWhiteNoiseSamplerLocation     = gl.getUniformLocation(prePassShaderProgram, "WhiteNoise")
+
     var basePassTransformLocation = gl.getUniformLocation(basePassShaderProgram, "transform")
     var basePassViewMatrixLocation = gl.getUniformLocation(basePassShaderProgram, "view");
     var basePassProjMatrixLocation = gl.getUniformLocation(basePassShaderProgram, "proj")
@@ -89,7 +107,6 @@
     var basePassTimeUniform = gl.getUniformLocation(basePassShaderProgram, "Time")
     var basePassAmbientOcclusionUniform = gl.getUniformLocation(basePassShaderProgram, "ShouldAmbientOcclusion")
     var basePassJitterUniform = gl.getUniformLocation(basePassShaderProgram, "ShouldJitter")
-
     var basePassCameraPositionUniform = gl.getUniformLocation(basePassShaderProgram, "CameraPosition")
     var basePassVolumePositionUniform = gl.getUniformLocation(basePassShaderProgram, "VolumePosition")
     var basePassVolumeSizeUniform = gl.getUniformLocation(basePassShaderProgram, "VolumeSize")
@@ -97,10 +114,10 @@
     var basePassVoxelTextureSampler = gl.getUniformLocation(basePassShaderProgram, "VoxelTexture")
     var basePassWhiteNoiseSampler = gl.getUniformLocation(basePassShaderProgram, "WhiteNoise")
     var basePassBlueNoiseSampler = gl.getUniformLocation(basePassShaderProgram, "BlueNoise")
+    var basePassTBufferSampler = gl.getUniformLocation(basePassShaderProgram, "TBuffer")
 
     var TAAPassWorldPositionBufferSampler = gl.getUniformLocation(TAAPassShaderProgram, "WorldPositionBuffer")
     var TAAPassFrameBufferSamplers = gl.getUniformLocation(TAAPassShaderProgram, "Frames")
-
     var TAAPassView0Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View0")
     var TAAPassView1Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View1")
     var TAAPassView2Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View2")
@@ -116,17 +133,14 @@
     var TAAPassView12Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View12")
     var TAAPassView13Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View13")
     var TAAPassView14Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View14")
-
     var TAAPassCameraPositionUniform = gl.getUniformLocation(TAAPassShaderProgram, "CameraPosition")
     var TAAPassCameraForwardUniform = gl.getUniformLocation(TAAPassShaderProgram, "CameraForward")
-
     var TAAPassNearUniform = gl.getUniformLocation(TAAPassShaderProgram, "Near")
     var TAAPassFarUniform = gl.getUniformLocation(TAAPassShaderProgram, "Far")
     var TAAPassTimeUniform = gl.getUniformLocation(TAAPassShaderProgram, "Time")
     
     var BlurPassFrameUniform = gl.getUniformLocation(BlurPassShaderProgram, "FrameTexture")
     var BlurPassHorizontalUniform = gl.getUniformLocation(BlurPassShaderProgram, "Horizontal");
-
     var DoFPassBluredFrameUniform = gl.getUniformLocation(DoFPassShaderProgram, "BlurredScene");
     var DoFPassUnblurredFrameUniform = gl.getUniformLocation(DoFPassShaderProgram, "UnblurredScene")
     var DoFPassDepthUniform = gl.getUniformLocation(DoFPassShaderProgram, "WorldPositionBuffer");
@@ -176,7 +190,7 @@
 
     function BuildScene()
     {
-        VolumeSize = [512.0, 32.0, 512.0]
+        VolumeSize = [512.0, 40.0, 512.0]
         VoxelTextureData = new Uint8Array(VolumeSize[0] * VolumeSize[1] * VolumeSize[2]);
         for (var z = 0; z < VolumeSize[2]; ++z) 
         {
@@ -184,8 +198,11 @@
             {
                 for (var x = 0; x < VolumeSize[0]; ++x) 
                 {
-                    let height = Math.max(noise((x / VolumeSize[0]) * 400.0, (z / VolumeSize[2]) * 400.0) * 0.5, VolumeSize[1] * 0.25)
-                    
+                    var n1 = noise(x * 0.01, y * 0.01, z * 0.01) * (VolumeSize[1] * 0.85)
+                    var n2 = noise(x * 0.08, z * 0.08, 0.0) * VolumeSize[1] * 0.15
+
+                    let height = (VolumeSize[1] * 0.5 ) + (Math.min(n1 + n2, 16.0));
+                   // height = Math.max()
                     //let height = VolumeSize[1] * 0.5
                     if (y < height)
                     {
@@ -200,10 +217,10 @@
             }
         }
 
-        //var x = VolumeSize[0] * 0.5
-        //var y = VolumeSize[1] * 0.5 + 1
-        //var z = VolumeSize[2] * 0.5
-        //VoxelTextureData[x + y * VolumeSize[0] + z * VolumeSize[2] * VolumeSize[1]] = 51
+        var x = VolumeSize[0] * 0.5
+        var y = VolumeSize[1] * 0.5 + 1
+        var z = VolumeSize[2] * 0.5
+        VoxelTextureData[x + y * VolumeSize[0] + z * VolumeSize[2] * VolumeSize[1]] = 51
 
         VoxelTexture = createVolumeTexture(gl, VoxelTextureData, VolumeSize);
 
@@ -321,6 +338,36 @@
     }
 
     // RENDER PASSES
+    function PrePass ()
+    {
+        gl.viewport(0, 0, canvas.width, canvas.height)
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, prePassFrameBuffer)
+
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.clear(gl.DEPTH_BUFFER_BIT)
+
+        gl.enable(gl.CULL_FACE)
+        gl.cullFace(gl.FRONT)
+
+        gl.useProgram(prePassShaderProgram);
+
+        gl.uniformMatrix4fv(prePassProjectionMatrixLocation, false, projMatrix)
+        gl.uniformMatrix4fv(prePassViewMatrixLocation, false, worldToViewMatrix)
+        gl.uniformMatrix4fv(prePassTransformMatrixLocation, false, Volume)
+        gl.uniform1f(prePassTimeUniformLocation, frameID)
+        gl.uniform2fv(prePassWindowSizeUniformLocation, [ canvas.width, canvas.height ])          
+        gl.uniform1i(prePassShouldJitterUniformLocation, TAA.checked ? 1 : 0);
+        gl.uniform4fv(prePassCameraPositionUniformLocation, CameraPosition)
+
+        gl.uniform1i(prePassWhiteNoiseSamplerLocation, 0);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, WhiteNoiseTexture);
+
+        gl.drawArraysInstanced(gl.TRIANGLES, 0, boxGeometryPositions.length / 3, 1);
+    }
+
     function BasePass () 
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
@@ -348,10 +395,9 @@
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.clear(gl.DEPTH_BUFFER_BIT)
-        gl.disable(gl.CULL_FACE);
-        gl.disable(gl.DEPTH_TEST)
-    //    gl.depthRange(Near, Far);
-        gl.disable(gl.BLEND)
+
+        gl.enable(gl.CULL_FACE)
+        gl.cullFace(gl.BACK)
 
         gl.useProgram(basePassShaderProgram);
 
@@ -366,6 +412,10 @@
         gl.uniform1i(basePassWhiteNoiseSampler, 2);
         gl.activeTexture(gl.TEXTURE2);
         gl.bindTexture(gl.TEXTURE_2D, WhiteNoiseTexture);
+
+        gl.uniform1i(basePassTBufferSampler, 3)
+        gl.activeTexture(gl.TEXTURE3)
+        gl.bindTexture(gl.TEXTURE_2D, prepassBuffer)
 
         gl.uniform2fv(basePassWindowSizeLocation, [canvas.width, canvas.height])
         gl.uniform1f(basePassTimeUniform, frameID);
@@ -525,6 +575,7 @@
 
     function Render () 
     {
+        PrePass();
         BasePass();
         if (TAA.checked) 
         {
