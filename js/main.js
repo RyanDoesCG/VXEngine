@@ -187,9 +187,11 @@
     var Volume
     var VolumePosition = [ 0.0, 0.0, 0.0 ]
     var VolumeSize = [ 4.0, 4.0, 4.0]
+    var NVoxels = 0
 
     function BuildScene()
     {
+        NVoxels = 0
         VolumeSize = [512.0, 40.0, 512.0]
         VoxelTextureData = new Uint8Array(VolumeSize[0] * VolumeSize[1] * VolumeSize[2]);
         for (var z = 0; z < VolumeSize[2]; ++z) 
@@ -201,12 +203,13 @@
                     var n1 = noise(x * 0.01, y * 0.01, z * 0.01) * (VolumeSize[1] * 0.85)
                     var n2 = noise(x * 0.08, z * 0.08, 0.0) * VolumeSize[1] * 0.15
 
-                    let height = (VolumeSize[1] * 0.5 ) + (Math.min(n1 + n2, 16.0));
+                    let height = (Math.max(n1 + n2, 6.0));
                    // height = Math.max()
                     //let height = VolumeSize[1] * 0.5
                     if (y < height)
                     {
                         VoxelTextureData[x + y * VolumeSize[0] + z * VolumeSize[2] * VolumeSize[1]] = 255;
+                        NVoxels++
                     }
                     else
                     {
@@ -254,6 +257,7 @@
                 gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);        
     
                 VoxelTextureData[IntersectionVoxelIndex[0] + IntersectionVoxelIndex[1]  * VolumeSize[0] + IntersectionVoxelIndex[2] * VolumeSize[2] * VolumeSize[1]] = 0;
+                NVoxels--;
                 gl.texSubImage3D(
                     gl.TEXTURE_3D,
                     0, 
@@ -577,6 +581,7 @@
     {
         PrePass();
         BasePass();
+
         if (TAA.checked) 
         {
             TAAPass();
@@ -587,8 +592,6 @@
             BlurPass();
             DepthOfFieldPass();
         }
-
-        frameID++;
     }
 
     var then = 0
@@ -641,10 +644,7 @@
             CameraForward[1].toFixed(1) + ", " + 
             CameraForward[2].toFixed(1) + "</p>"
 
-     //   ui.innerHTML +="<p>" + BoxPositions.length / 3 + " boxes in scene </p>";
-     //   ui.innerHTML +="<p>" + RasterBoxPositions.length / 3 + " boxes sent to raster </p>";
-     //   ui.innerHTML +="<p>" + RTBoxPositions.length / 3 + " boxes in ray tracing </p>";
-     //   ui.innerHTML +="<p>" + Culled + " culled with dot </p>";
+        ui.innerHTML +="<p>" + NVoxels.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " boxes in scene </p>";
 
         size.innerHTML = "<p>" + canvas.width + " x " + canvas.height + "</p>"
         size.innerHTML += "<p>" + canvas.clientWidth + " x " + canvas.clientHeight + "</p>"
@@ -656,7 +656,7 @@
             DisplayedFrameTime = TimeSinceLastUpdate;
         }
        
-    //    setInterval(Loop, 33);
+        frameID++;
         requestAnimationFrame(Loop)
     }
 

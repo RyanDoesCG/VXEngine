@@ -115,6 +115,10 @@ voxelShaderSource = `
         {
             return vec3(200.0, 0.0, 200.0);
         }
+        if (uv.y >= 6)
+        {
+            return vec3(0.05, 0.05, 0.05);
+        }
         return vec3(0.1, 0.1, 0.1);
     }
 
