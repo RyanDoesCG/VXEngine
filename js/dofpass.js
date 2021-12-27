@@ -30,7 +30,7 @@ var DoFFragmentShaderSource = `#version 300 es
 
         float min = 0.0;
         float max = 2.0;
-        float focus = distance(WorldPosition.xyz, FocalPoint.xyz) * 0.05;
+        float focus = distance(WorldPosition.xyz, FocalPoint.xyz) * 0.01;
 
         //out_colour = vec4(focus);
         //out_colour.w= 1.0;

@@ -138,6 +138,7 @@ var basePassFragmentShaderSourceBody = `
             CameraPosition.y < VolumeMax.y && CameraPosition.y > VolumeMin.y &&
             CameraPosition.z < VolumeMax.z && CameraPosition.z > VolumeMin.z)
         {
+            t2 = t1;
             t1 = 0.0;
         }
 

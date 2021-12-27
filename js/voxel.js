@@ -164,35 +164,6 @@ voxelShaderSource = `
         return VoxelHit;
     }
 
-    /*
-    Hit intersectRayVoxel(Ray ray, ivec3 VolumeIndex)
-    {
-        vec3 VolumeCorner  = VolumePosition - VolumeSize * 0.5;
-        vec3 VoxelPosition = floor(VolumeCorner + vec3(VolumeIndex)) + 0.5;
-        vec3 VoxelColour   = paintVoxel(VolumeIndex);
-
-        Hit voxelHit;
-        voxelHit.t = BIG_NUMBER;
-        voxelHit = IntersectRayBox(ray, Box(
-                VoxelPosition,
-                VoxelColour,
-                vec3(1.0)), voxelHit);
-
-        if (!isLight(VolumeIndex))
-        {
-            if (voxelHit.uv.x < 0.025 || voxelHit.uv.x > 0.975 || voxelHit.uv.y < 0.025 || voxelHit.uv.y > 0.975)
-            {
-                voxelHit.colour = vec3(0.05);
-            }
-        }
-
-        voxelHit.id = VolumeIndex;
-
-
-        return voxelHit;
-    }
-    */
-
     Hit Miss ()
     {
         Hit miss;
@@ -291,6 +262,7 @@ voxelShaderSource = `
             return intersectRayVoxel(primary, VoxelIndex, t1, normal);
         }
 
+        float scattering = 0.0;
         float t = 0.0;
         while (VoxelIndex != ExitVoxel)
         // int NSteps = 256;
@@ -333,6 +305,8 @@ voxelShaderSource = `
                 }
             }
 
+            scattering += 0.01;
+
             // Have we left the grid? exit the loop if so
             if (VoxelIndex.x >= int(VolumeSize.x) || VoxelIndex.x < 0) break;
             if (VoxelIndex.y >= int(VolumeSize.y) || VoxelIndex.y < 0) break;
@@ -341,7 +315,11 @@ voxelShaderSource = `
             // Otherwise, test the voxel we landed in
             if (testVoxel(VoxelIndex))
             {
-                return intersectRayVoxel(primary, VoxelIndex, t1 + t, vec3(LastStep) * -1.0);
+                Hit hit = intersectRayVoxel(primary, VoxelIndex, t1 + t, vec3(LastStep) * -1.0);
+                
+             //   hit.colour = mix(vec3(0.2), hit.colour, scattering);
+                
+                return hit;
             }
         }     
 

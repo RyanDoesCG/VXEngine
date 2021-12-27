@@ -192,7 +192,7 @@
     function BuildScene()
     {
         NVoxels = 0
-        VolumeSize = [512.0, 40.0, 512.0]
+        VolumeSize = [32.0, 30.0, 32.0]
         VoxelTextureData = new Uint8Array(VolumeSize[0] * VolumeSize[1] * VolumeSize[2]);
         for (var z = 0; z < VolumeSize[2]; ++z) 
         {
@@ -220,9 +220,9 @@
             }
         }
 
-        var x = VolumeSize[0] * 0.5
-        var y = VolumeSize[1] * 0.5 + 1
-        var z = VolumeSize[2] * 0.5
+        var x = VolumeSize[0] * 0.25
+        var y = 9
+        var z = VolumeSize[2] * 0.25
         VoxelTextureData[x + y * VolumeSize[0] + z * VolumeSize[2] * VolumeSize[1]] = 51
 
         VoxelTexture = createVolumeTexture(gl, VoxelTextureData, VolumeSize);
@@ -370,6 +370,8 @@
         gl.bindTexture(gl.TEXTURE_2D, WhiteNoiseTexture);
 
         gl.drawArraysInstanced(gl.TRIANGLES, 0, boxGeometryPositions.length / 3, 1);
+        
+        gl.disable(gl.CULL_FACE)
     }
 
     function BasePass () 
@@ -401,7 +403,30 @@
         gl.clear(gl.DEPTH_BUFFER_BIT)
 
         gl.enable(gl.CULL_FACE)
-        gl.cullFace(gl.BACK)
+
+        var VolumeMin = [
+            VolumePosition[0] - (VolumeSize[0] * 0.5),
+            VolumePosition[1] - (VolumeSize[1] * 0.5),
+            VolumePosition[2] - (VolumeSize[2] * 0.5),
+        ]
+        var VolumeMax = [
+            VolumePosition[0] + (VolumeSize[0] * 0.5),
+            VolumePosition[1] + (VolumeSize[1] * 0.5),
+            VolumePosition[2] + (VolumeSize[2] * 0.5),
+        ]
+        var CameraInVolume = 
+            VolumeMin[0] < CameraPosition[0] && CameraPosition[0] < VolumeMax[0] &&
+            VolumeMin[1] < CameraPosition[1] && CameraPosition[1] < VolumeMax[1] &&
+            VolumeMin[2] < CameraPosition[2] && CameraPosition[2] < VolumeMax[2]; 
+
+        if (CameraInVolume)
+        {
+            gl.cullFace(gl.FRONT)
+        }
+        else
+        {
+            gl.cullFace(gl.BACK)
+        }
 
         gl.useProgram(basePassShaderProgram);
 
@@ -436,6 +461,8 @@
         gl.uniformMatrix4fv(basePassTransformLocation, false, Volume);
 
         gl.drawArraysInstanced(gl.TRIANGLES, 0, boxGeometryPositions.length / 3, 1);
+    
+        gl.disable(gl.CULL_FACE)
     }
 
     function TAAPass () 
