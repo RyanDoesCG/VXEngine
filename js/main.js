@@ -759,7 +759,14 @@
         }
         else
         {
-            gl.bindTexture(gl.TEXTURE_2D, AABuffer)
+            if (TAA.checked)
+            {
+                gl.bindTexture(gl.TEXTURE_2D, AABuffer)
+            }
+            else
+            {
+                gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
+            }
         }
         gl.uniform1i(DoFPassUnblurredFrameUniform, 1);
 
