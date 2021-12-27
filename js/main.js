@@ -5,6 +5,7 @@
     InitNoise();
 
     let AO   = document.getElementById('AOOn')
+    let Bloom = document.getElementById('BloomOn')
     let TAA  = document.getElementById('TAAOn')
     let DoF  = document.getElementById('DoFOn')
 
@@ -24,24 +25,34 @@
     let UP = vec4(0.0, 1.0, 0.0, 0.0);
 
     // SHADERS
+    console.log("compiling bloom shader")
+    var bloomPassShaderProgram = createProgram(gl,
+        createShader (gl, gl.VERTEX_SHADER, bloomPassVertexShaderSource),
+        createShader (gl, gl.FRAGMENT_SHADER, bloomPassFragmentShaderSource))
+
+    console.log("compiling prepass shader")
     var prePassShaderProgram = createProgram(gl, 
         createShader (gl, gl.VERTEX_SHADER, prePassVertexShaderSource),
         createShader (gl, gl.FRAGMENT_SHADER, prePassFragmentShaderSource))
 
+    console.log("compiling basepass shader")
     var basePassShaderProgram  = createProgram (gl, 
         createShader  (gl, gl.VERTEX_SHADER,   basePassVertexShaderSource), 
         createShader  (gl, gl.FRAGMENT_SHADER, basePassFragmentShaderSourceHeader + voxelShaderSource + basePassFragmentShaderSourceBody));
 
+    console.log("compiling TAA shader")
     var TAAPassShaderProgram = createProgram(gl,
         createShader(gl, gl.VERTEX_SHADER, TAAPassVertexShaderSource),
         createShader(gl, gl.FRAGMENT_SHADER, 
             TAAPassFragmentShaderHeaderSource +
             TAAPassFragmentShaderFooterSource))
 
+    console.log("compiling blur shader")
     var BlurPassShaderProgram = createProgram(gl,
         createShader(gl, gl.VERTEX_SHADER, BlurPassVertexShaderSource),
         createShader(gl, gl.FRAGMENT_SHADER, BlurPassFragmentShaderSource))
-
+    
+    console.log("compiling dof shader")
     var DoFPassShaderProgram = createProgram(gl,
         createShader(gl, gl.VERTEX_SHADER, DoFVertexShaderSource),
         createShader(gl, gl.FRAGMENT_SHADER, DoFFragmentShaderSource))
@@ -49,6 +60,7 @@
     // FRAME BUFFERS
     var prepassBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
     var worldposBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
+    var bloomBuffer = createColourTexture(gl, Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
 
     // TAA History
     let NumHistorySamples = 15;
@@ -61,7 +73,8 @@
 
     var AABuffer = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
     var AAFrameBuffer = createFramebuffer(gl, 
-        AABuffer)
+        AABuffer,
+        bloomBuffer)
 
     var ViewTransforms = [NumHistorySamples]
     for (var i = 0; i < NumHistorySamples; ++i)
@@ -70,15 +83,27 @@
     var prePassFrameBuffer = createFramebuffer(gl, prepassBuffer)
     var basePassFrameBuffer
 
+    var bloomPassBuffer =  createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
+    var bloomPassFrameBuffer = createFramebuffer(gl, bloomPassBuffer)
+
     // TAA History
 
-    var BlurBufferA = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
-    var BlurFrameBufferA = createFramebuffer(gl, 
-        BlurBufferA)
-    var BlurBufferB = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
-    var BlurFrameBufferB = createFramebuffer(gl, 
-        BlurBufferB)
-    
+    var BaseBlurBufferA = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
+    var BaseBlurFrameBufferA = createFramebuffer(gl, 
+        BaseBlurBufferA)
+        
+    var BaseBlurBufferB = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
+    var BaseBlurFrameBufferB = createFramebuffer(gl, 
+        BaseBlurBufferB)
+
+    var BloomBlurBufferA = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
+    var BloomBlurFrameBufferA = createFramebuffer(gl, 
+        BloomBlurBufferA)
+        
+    var BloomBlurBufferB = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
+    var BloomBlurFrameBufferB = createFramebuffer(gl, 
+        BloomBlurBufferB)
+
     // TEXTURES
     var WhiteNoiseTexture = loadTexture(gl, 'images/noise/white.png')
     var STBNBlueNoiseTextures = []
@@ -140,10 +165,15 @@
     var TAAPassTimeUniform = gl.getUniformLocation(TAAPassShaderProgram, "Time")
     
     var BlurPassFrameUniform = gl.getUniformLocation(BlurPassShaderProgram, "FrameTexture")
-    var BlurPassHorizontalUniform = gl.getUniformLocation(BlurPassShaderProgram, "Horizontal");
+    var BlurPassHorizontalUniform = gl.getUniformLocation(BlurPassShaderProgram, "horizontal")
+    var BlurPassOffsetScaleUniform = gl.getUniformLocation(BlurPassShaderProgram, "offsetScale")
+    
     var DoFPassBluredFrameUniform = gl.getUniformLocation(DoFPassShaderProgram, "BlurredScene");
     var DoFPassUnblurredFrameUniform = gl.getUniformLocation(DoFPassShaderProgram, "UnblurredScene")
     var DoFPassDepthUniform = gl.getUniformLocation(DoFPassShaderProgram, "WorldPositionBuffer");
+
+    var BloomPassBluredFrameUniform = gl.getUniformLocation(bloomPassShaderProgram, "BlurredScene");
+    var BloomPassUnblurredFrameUniform = gl.getUniformLocation(bloomPassShaderProgram, "UnblurredScene")
 
     // Screen Pass Geometry Resources
     var screenGeometryVertexArray = gl.createVertexArray();
@@ -192,7 +222,7 @@
     function BuildScene()
     {
         NVoxels = 0
-        VolumeSize = [32.0, 30.0, 32.0]
+        VolumeSize = [512.0, 30.0, 512.0]
         VoxelTextureData = new Uint8Array(VolumeSize[0] * VolumeSize[1] * VolumeSize[2]);
         for (var z = 0; z < VolumeSize[2]; ++z) 
         {
@@ -308,6 +338,11 @@
     var CameraRight = RIGHT;
     var CameraUp = UP;
 
+
+    var VolumeMin
+    var VolumeMax
+    var CameraInVolume
+
     function ComputeView () 
     {
         projMatrix = perspective(FOV, Near, Far, canvas.clientWidth, canvas.clientHeight)
@@ -333,6 +368,22 @@
         FrustumBottom = [ access(viewProj, 0, 3) + access(viewProj, 0, 1), access(viewProj, 1, 3) + access(viewProj, 1, 1), access(viewProj, 2, 3) + access(viewProj, 2, 1), access(viewProj, 3, 3) + access(viewProj, 3, 1)]
         FrustumFront  = [ access(viewProj, 0, 3) + access(viewProj, 0, 2), access(viewProj, 1, 3) + access(viewProj, 1, 2), access(viewProj, 2, 3) + access(viewProj, 2, 2), access(viewProj, 3, 3) + access(viewProj, 3, 2)]
         FrustumBack   = [ access(viewProj, 0, 3) - access(viewProj, 0, 2), access(viewProj, 1, 3) - access(viewProj, 1, 2), access(viewProj, 2, 3) - access(viewProj, 2, 2), access(viewProj, 3, 3) - access(viewProj, 3, 2)]
+
+        VolumeMin = [
+            VolumePosition[0] - (VolumeSize[0] * 0.5),
+            VolumePosition[1] - (VolumeSize[1] * 0.5),
+            VolumePosition[2] - (VolumeSize[2] * 0.5),
+        ]
+        VolumeMax = [
+            VolumePosition[0] + (VolumeSize[0] * 0.5),
+            VolumePosition[1] + (VolumeSize[1] * 0.5),
+            VolumePosition[2] + (VolumeSize[2] * 0.5),
+        ]
+        CameraInVolume = 
+            VolumeMin[0] < CameraPosition[0] && CameraPosition[0] < VolumeMax[0] &&
+            VolumeMin[1] < CameraPosition[1] && CameraPosition[1] < VolumeMax[1] &&
+            VolumeMin[2] < CameraPosition[2] && CameraPosition[2] < VolumeMax[2]; 
+
 
         var LastView = ViewTransforms.pop();
         ViewTransforms.unshift(multiplym(projMatrix, worldToViewMatrix))
@@ -380,11 +431,17 @@
 
         if (TAA.checked)
         {
-            basePassFrameBuffer = createFramebuffer(gl, LightingBuffers[0], worldposBuffer)
+            basePassFrameBuffer = createFramebuffer(gl, 
+                LightingBuffers[0], 
+                worldposBuffer,
+                bloomBuffer)
+
             gl.bindFramebuffer(gl.FRAMEBUFFER, basePassFrameBuffer);
+            
             gl.drawBuffers([
                 gl.COLOR_ATTACHMENT0, 
-                gl.COLOR_ATTACHMENT1]);
+                gl.COLOR_ATTACHMENT1,
+                gl.COLOR_ATTACHMENT2]);
         }
         else
         {
@@ -403,21 +460,6 @@
         gl.clear(gl.DEPTH_BUFFER_BIT)
 
         gl.enable(gl.CULL_FACE)
-
-        var VolumeMin = [
-            VolumePosition[0] - (VolumeSize[0] * 0.5),
-            VolumePosition[1] - (VolumeSize[1] * 0.5),
-            VolumePosition[2] - (VolumeSize[2] * 0.5),
-        ]
-        var VolumeMax = [
-            VolumePosition[0] + (VolumeSize[0] * 0.5),
-            VolumePosition[1] + (VolumeSize[1] * 0.5),
-            VolumePosition[2] + (VolumeSize[2] * 0.5),
-        ]
-        var CameraInVolume = 
-            VolumeMin[0] < CameraPosition[0] && CameraPosition[0] < VolumeMax[0] &&
-            VolumeMin[1] < CameraPosition[1] && CameraPosition[1] < VolumeMax[1] &&
-            VolumeMin[2] < CameraPosition[2] && CameraPosition[2] < VolumeMax[2]; 
 
         if (CameraInVolume)
         {
@@ -468,9 +510,13 @@
     function TAAPass () 
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
-        if (DoF.checked)
+        if (DoF.checked || Bloom.checked)
         {
             gl.bindFramebuffer(gl.FRAMEBUFFER, AAFrameBuffer);
+                        
+            gl.drawBuffers([
+                gl.COLOR_ATTACHMENT0, 
+                gl.COLOR_ATTACHMENT1]);
         }
         else
         {
@@ -559,25 +605,96 @@
     function BlurPass()
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, BlurFrameBufferA);
-        gl.clearColor(0.0, 0.0, 0.0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
         gl.useProgram(BlurPassShaderProgram);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, BaseBlurFrameBufferA);
+        gl.clearColor(0.0, 0.0, 0.0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);        
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, AABuffer);
         gl.uniform1i(BlurPassFrameUniform, 0);
         gl.uniform1i(BlurPassHorizontalUniform, 0);
+        gl.uniform1f(BlurPassOffsetScaleUniform, 1.0);
         gl.bindVertexArray(screenGeometryVertexArray);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, BlurFrameBufferB);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, BaseBlurFrameBufferB);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, BlurBufferA);
+        gl.bindTexture(gl.TEXTURE_2D, BaseBlurBufferA);
         gl.uniform1i(BlurPassFrameUniform, 0);
         gl.uniform1i(BlurPassHorizontalUniform, 1);
+        gl.uniform1f(BlurPassOffsetScaleUniform, 1.0);
         gl.bindVertexArray(screenGeometryVertexArray);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, BloomBlurFrameBufferA);
+        gl.clearColor(0.0, 0.0, 0.0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);        
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, bloomBuffer);
+        gl.uniform1i(BlurPassFrameUniform, 0);
+        gl.uniform1i(BlurPassHorizontalUniform, 0);
+        gl.uniform1f(BlurPassOffsetScaleUniform, 1.0);
+        gl.bindVertexArray(screenGeometryVertexArray);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, BloomBlurFrameBufferB);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, BloomBlurBufferA);
+        gl.uniform1i(BlurPassFrameUniform, 0);
+        gl.uniform1i(BlurPassHorizontalUniform, 1);
+        gl.uniform1f(BlurPassOffsetScaleUniform, 1.0);
+        gl.bindVertexArray(screenGeometryVertexArray);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, BloomBlurFrameBufferA);
+        gl.clearColor(0.0, 0.0, 0.0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);        
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, BloomBlurBufferB);
+        gl.uniform1i(BlurPassFrameUniform, 0);
+        gl.uniform1i(BlurPassHorizontalUniform, 0);
+        gl.uniform1f(BlurPassOffsetScaleUniform, 4.0);
+        gl.bindVertexArray(screenGeometryVertexArray);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, BloomBlurFrameBufferB);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, BloomBlurBufferA);
+        gl.uniform1i(BlurPassFrameUniform, 0);
+        gl.uniform1i(BlurPassHorizontalUniform, 1);
+        gl.uniform1f(BlurPassOffsetScaleUniform, 4.0);
+        gl.bindVertexArray(screenGeometryVertexArray);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    function BloomPass ()
+    {
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        if (DoF.checked)
+        {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, bloomPassFrameBuffer)
+        }
+        else
+        {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        }
+
+        gl.clearColor(0.0, 0.0, 0.0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(bloomPassShaderProgram);
+    
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, BloomBlurBufferB);
+        gl.uniform1i(BloomPassBluredFrameUniform, 0);
+
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, AABuffer);
+        gl.uniform1i(BloomPassUnblurredFrameUniform, 1);
+
+        gl.bindVertexArray(screenGeometryVertexArray);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);   
     }
 
     function DepthOfFieldPass()
@@ -589,11 +706,18 @@
         gl.useProgram(DoFPassShaderProgram);
     
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, BlurBufferB);
+        gl.bindTexture(gl.TEXTURE_2D, BaseBlurBufferB);
         gl.uniform1i(DoFPassBluredFrameUniform, 0);
 
         gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, AABuffer);
+        if (Bloom.checked)
+        {
+            gl.bindTexture(gl.TEXTURE_2D, bloomPassBuffer)
+        }
+        else
+        {
+            gl.bindTexture(gl.TEXTURE_2D, AABuffer)
+        }
         gl.uniform1i(DoFPassUnblurredFrameUniform, 1);
 
         gl.activeTexture(gl.TEXTURE2);
@@ -606,7 +730,11 @@
 
     function Render () 
     {
-        PrePass();
+        if (!CameraInVolume)
+        {
+            PrePass();
+        }
+
         BasePass();
 
         if (TAA.checked) 
@@ -614,9 +742,15 @@
             TAAPass();
         }
 
+        BlurPass();
+
+        if (Bloom.checked)
+        {
+            BloomPass();
+        }
+
         if (DoF.checked)
         {
-            BlurPass();
             DepthOfFieldPass();
         }
     }

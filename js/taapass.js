@@ -43,7 +43,9 @@ var TAAPassFragmentShaderHeaderSource =
     uniform float Time;
 
     in vec2 frag_uvs;
-    out vec4 out_color;
+
+    layout (location = 0) out vec4 out_color;
+    layout (location = 1) out vec4 out_bloom;
 `
 
 var TAAPassFragmentShaderFooterSource = `
@@ -75,6 +77,12 @@ var TAAPassFragmentShaderFooterSource = `
         vec2 uv = frag_uvs;
         Result += texture(Frames[0], uv) * weight;
         samples += 1.0;
+
+       // if (position.w == 0.0)
+       // {
+       //     out_color = vec4(Result.xyz, 1.0) * weight;
+       //     return;
+       // }
 
         pl = View1 * position;
         uv = (0.5 * (pl.xy / pl.w) + 0.5);
@@ -189,6 +197,11 @@ var TAAPassFragmentShaderFooterSource = `
         }
 
         out_color = vec4(Result.xyz / samples, 1.0);
+
+        if (out_color.x > 0.5 || out_color.y > 0.5 || out_color.z > 0.5)
+        {
+            out_bloom = out_color;
+        }
     }`
 
 

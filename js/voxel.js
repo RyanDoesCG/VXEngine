@@ -113,7 +113,7 @@ voxelShaderSource = `
     {
         if (isLight(uv))
         {
-            return vec3(200.0, 0.0, 200.0);
+            return vec3(200.0, 200.0, 200.0);
         }
         if (uv.y >= 6)
         {
@@ -156,9 +156,12 @@ voxelShaderSource = `
         VoxelHit.uv = vec2(u, v);
 
         VoxelHit.colour = paintVoxel(VoxelIndex);
-        if (VoxelHit.uv.x < 0.025 || VoxelHit.uv.x > 0.975 || VoxelHit.uv.y < 0.025 || VoxelHit.uv.y > 0.975)
+        if (!isLight(VoxelIndex))
         {
-            VoxelHit.colour = vec3(0.05);
+            if (VoxelHit.uv.x < 0.025 || VoxelHit.uv.x > 0.975 || VoxelHit.uv.y < 0.025 || VoxelHit.uv.y > 0.975)
+            {
+                VoxelHit.colour = vec3(0.05);
+            }    
         }
 
         return VoxelHit;

@@ -78,6 +78,7 @@ var basePassFragmentShaderSourceHeader =
 
     layout(location = 0) out vec4 out_color;
     layout(location = 1) out vec4 out_worldpos;
+    layout(location = 2) out vec4 out_bloom;
 
     float seed = 0.0;
     float random ()
@@ -151,6 +152,11 @@ var basePassFragmentShaderSourceBody = `
         if (primaryHit.t < BIG_NUMBER)
         {
             out_color = vec4(primaryHit.colour, 0.5);
+
+            if (out_color.x > 1.0 || out_color.y > 1.0 || out_color.z > 1.0)
+            {
+                out_bloom = out_color;
+            }
 
             if (ShouldAmbientOcclusion == 1)
             {
