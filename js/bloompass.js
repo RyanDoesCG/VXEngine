@@ -26,7 +26,7 @@ var bloomPassFragmentShaderSource = `#version 300 es
         vec4 BlurSample = texture(BlurredScene, frag_uvs);
         vec4 UnblurredSample = texture(UnblurredScene, frag_uvs);
 
-        out_colour = BlurSample + UnblurredSample;
+        out_colour = clamp(vec4(0.0), vec4(1.0), BlurSample + UnblurredSample);
     }
 
 `

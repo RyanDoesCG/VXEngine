@@ -123,10 +123,10 @@ var basePassFragmentShaderSourceBody = `
     void main() 
     {        
         vec3 rayjitter = vec3(0.0);
-        //if (ShouldJitter == 1)
-        //{
-        //    rayjitter = vec3(random(), random(), 0.0) * 0.0025;
-        //}
+        if (ShouldJitter == 1)
+        {
+            rayjitter = vec3(random(), random(), 0.0) * 0.00025;
+        }
 
         vec2 screenUV = gl_FragCoord.xy / vec2(WindowSize.xy);
 
@@ -203,6 +203,10 @@ var basePassFragmentShaderSourceBody = `
             }
             
             out_worldpos = vec4(primaryHit.position.xyz, primaryHit.t);
+        }
+        else
+        {
+            out_worldpos = vec4(primaryRay.origin + primaryRay.direction * BIG_NUMBER, BIG_NUMBER);
         }
 
         float gamma = 2.2;

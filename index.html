@@ -14,7 +14,6 @@
 
             <p>- TAA Smearing Improvements</p>
             <p>- Explicit Lights</p>
-            <p>- Bloom </p>
             <p>- Transparency Pass</p>
             <p>- Multiple Volumes </p>
             <p>- Physics </p>
@@ -24,6 +23,32 @@
         <div id="loading"><p>loading</p></div>
 
         <div id="controls">
+            <label class="container"><p>Ambient Occlusion</p>
+                <input type="checkbox" id="AOOn" checked="checked">
+                <span class="checkmark"></span>
+              </label>
+              
+            <label class="container"><p>Bloom</p>
+                <input type="checkbox" id="BloomOn" checked="checked">
+                <span class="checkmark"></span>
+            </label>
+              
+            <label class="container"><p>Depth of Field</p>
+                <input type="checkbox" id="DoFOn" checked="checked">
+                <span class="checkmark"></span>
+            </label>
+              
+            <label class="container"><p>Fog</p>
+                <input type="checkbox" id="FogOn" checked="checked">
+                <span class="checkmark"></span>
+            </label>
+
+            <label class="container"><p>TAA</p>
+                <input type="checkbox" id="TAAOn" checked="checked">
+                <span class="checkmark"></span>
+            </label>
+
+            <!--
             <input type="checkbox" id="AOOn" name="AOOn" checked>
             <label for="AOOn">Ambient Occlusion</label>
             <br>
@@ -36,11 +61,16 @@
             <label for="DoFOn">DoF</label>
             <br>
             <br>
+            <input type="checkbox" id="FogOn" name="FogOn" checked>
+            <label for="FogOn">Fog</label>
+            <br>
+            <br>
             <input type="checkbox" id="TAAOn" name="TAAOn" checked>
             <label for="TSAAOn">TAA</label>
+            -->
         </div>
 
-        <canvas width="600" height="600" id="canv"></canvas>
+        <canvas width="512" height="512" id="canv"></canvas>
         <script src="js/maths.js"></script>
         <script src="js/noise.js"></script>
         <script src="js/geometry.js"></script>
@@ -51,6 +81,7 @@
         <script src="js/blurpass.js"></script>
         <script src="js/bloompass.js"></script>
         <script src="js/dofpass.js"></script>
+        <script src="js/fogpass.js"></script>
         <script src="js/shaders.js"></script>
         <script src="js/texture.js"></script>
         <script src="js/framebuffer.js"></script>
