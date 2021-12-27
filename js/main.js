@@ -92,6 +92,9 @@
     var bloomPassBuffer =  createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
     var bloomPassFrameBuffer = createFramebuffer(gl, bloomPassBuffer)
 
+    var fogPassBuffer= createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
+    var fogPassFramebuffer = createFramebuffer(gl, fogPassBuffer)
+
     // TAA History
 
     var BaseBlurBufferA = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
@@ -697,45 +700,10 @@
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
-    function BloomPass ()
-    {
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        if (DoF.checked || Fog.checked)
-        {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, bloomPassFrameBuffer)
-        }
-        else
-        {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        }
-
-        gl.clearColor(0.0, 0.0, 0.0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.useProgram(bloomPassShaderProgram);
-    
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, BloomBlurBufferB);
-        gl.uniform1i(BloomPassBluredFrameUniform, 0);
-
-        gl.activeTexture(gl.TEXTURE1);
-        if (TAA.checked)
-        {
-            gl.bindTexture(gl.TEXTURE_2D, AABuffer);
-        }
-        else
-        {
-            gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0]);
-        }
-        gl.uniform1i(BloomPassUnblurredFrameUniform, 1);
-
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);   
-    }
-
     function DepthOfFieldPass()
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
-        if (Fog.checked)
+        if (Fog.checked || Bloom.checked)
         {
             gl.bindFramebuffer(gl.FRAMEBUFFER, DoFFramebuffer);
         }
@@ -753,21 +721,16 @@
         gl.uniform1i(DoFPassBluredFrameUniform, 0);
 
         gl.activeTexture(gl.TEXTURE1);
-        if (Bloom.checked)
+
+        if (TAA.checked)
         {
-            gl.bindTexture(gl.TEXTURE_2D, bloomPassBuffer)
+            gl.bindTexture(gl.TEXTURE_2D, AABuffer)
         }
         else
         {
-            if (TAA.checked)
-            {
-                gl.bindTexture(gl.TEXTURE_2D, AABuffer)
-            }
-            else
-            {
-                gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
-            }
+            gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
         }
+
         gl.uniform1i(DoFPassUnblurredFrameUniform, 1);
 
         gl.activeTexture(gl.TEXTURE2);
@@ -781,7 +744,15 @@
     function FogPass ()
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        if (Bloom.checked)
+        {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fogPassFramebuffer);
+        }
+        else
+        {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        }
+
         gl.clearColor(0.0, 0.0, 0.0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.useProgram(FogPassShaderProgram);
@@ -793,7 +764,14 @@
         }
         else
         {
-            gl.bindTexture(gl.TEXTURE_2D, bloomPassBuffer)
+            if (TAA.checked)
+            {
+                gl.bindTexture(gl.TEXTURE_2D, AABuffer)
+            }
+            else
+            {
+                gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
+            }
         }
 
         gl.uniform1i(FogSceneTextureUniform, 0);
@@ -801,6 +779,48 @@
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, worldposBuffer);
         gl.uniform1i(FogPositionTextureUniform, 1);
+
+        gl.bindVertexArray(screenGeometryVertexArray);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);   
+    }
+
+    function BloomPass ()
+    {
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        gl.clearColor(0.0, 0.0, 0.0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(bloomPassShaderProgram);
+    
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, BloomBlurBufferB);
+        gl.uniform1i(BloomPassBluredFrameUniform, 0);
+
+        gl.activeTexture(gl.TEXTURE1);
+        if (Fog.checked)
+        {
+            gl.bindTexture(gl.TEXTURE_2D, fogPassBuffer);
+        }
+        else
+        {
+            if (DoF.checked)
+            {
+                gl.bindTexture(gl.TEXTURE_2D, DoFBuffer);
+            }
+            else
+            {
+                if (TAA.checked)
+                {
+                    gl.bindTexture(gl.TEXTURE_2D, AABuffer);
+                }
+                else
+                {
+                    gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0]);
+                }
+            }
+        }
+        gl.uniform1i(BloomPassUnblurredFrameUniform, 1);
 
         gl.bindVertexArray(screenGeometryVertexArray);
         gl.drawArrays(gl.TRIANGLES, 0, 6);   
@@ -822,11 +842,6 @@
 
         BlurPass();
 
-        if (Bloom.checked)
-        {
-            BloomPass();
-        }
-
         if (DoF.checked)
         {
             DepthOfFieldPass();
@@ -835,6 +850,11 @@
         if (Fog.checked)
         {
             FogPass()
+        }
+
+        if (Bloom.checked)
+        {
+            BloomPass();
         }
     }
 
