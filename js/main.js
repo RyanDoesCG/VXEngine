@@ -58,11 +58,8 @@
         createShader(gl, gl.VERTEX_SHADER, DoFVertexShaderSource),
         createShader(gl, gl.FRAGMENT_SHADER, DoFFragmentShaderSource))
 
-    console.log("compiling fog shader")
-    var FogPassShaderProgram = createProgram(gl,
-        createShader(gl, gl.VERTEX_SHADER, FogPassVertexShaderSource),
-        createShader(gl, gl.FRAGMENT_SHADER, FogPassFragmentShaderSource))
-
+    var FogRenderPass = new FogPass(gl, canvas.width, canvas.height);
+        
     // FRAME BUFFERS
     var prepassBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
     var worldposBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
@@ -188,9 +185,6 @@
     var BloomPassBluredFrameUniform = gl.getUniformLocation(bloomPassShaderProgram, "BlurredScene");
     var BloomPassUnblurredFrameUniform = gl.getUniformLocation(bloomPassShaderProgram, "UnblurredScene")
 
-    var FogSceneTextureUniform = gl.getUniformLocation(FogPassShaderProgram, "SceneTexture")
-    var FogPositionTextureUniform = gl.getUniformLocation(FogPassShaderProgram, "PositionTexture")
-    
     // Screen Pass Geometry Resources
     var screenGeometryVertexArray = gl.createVertexArray();
     gl.bindVertexArray(screenGeometryVertexArray);
@@ -741,49 +735,6 @@
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
-    function FogPass ()
-    {
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        if (Bloom.checked)
-        {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, fogPassFramebuffer);
-        }
-        else
-        {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-        }
-
-        gl.clearColor(0.0, 0.0, 0.0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.useProgram(FogPassShaderProgram);
-
-        gl.activeTexture(gl.TEXTURE0);
-        if (DoF.checked)
-        {
-            gl.bindTexture(gl.TEXTURE_2D, DoFBuffer);
-        }
-        else
-        {
-            if (TAA.checked)
-            {
-                gl.bindTexture(gl.TEXTURE_2D, AABuffer)
-            }
-            else
-            {
-                gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
-            }
-        }
-
-        gl.uniform1i(FogSceneTextureUniform, 0);
-
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, worldposBuffer);
-        gl.uniform1i(FogPositionTextureUniform, 1);
-
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);   
-    }
-
     function BloomPass ()
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
@@ -800,7 +751,7 @@
         gl.activeTexture(gl.TEXTURE1);
         if (Fog.checked)
         {
-            gl.bindTexture(gl.TEXTURE_2D, fogPassBuffer);
+            gl.bindTexture(gl.TEXTURE_2D, FogRenderPass.output);
         }
         else
         {
@@ -828,28 +779,38 @@
 
     function Render () 
     {
+        var LastBuffer = null
         if (!CameraInVolume)
         {
             PrePass();
+            LastBuffer = prepassBuffer
         }
 
         BasePass();
+        LastBuffer = LightingBuffers[0]
 
         if (TAA.checked) 
         {
             TAAPass();
+            LastBuffer = AABuffer
         }
 
         BlurPass();
-
+        LastBuffer = BaseBlurBufferB
+            
         if (DoF.checked)
         {
             DepthOfFieldPass();
+            LastBuffer = DoFBuffer
         }
 
         if (Fog.checked)
         {
-            FogPass()
+            FogRenderPass.Render(
+                screenGeometryVertexArray,
+                LastBuffer,
+                worldposBuffer,
+                Bloom.checked?false:true)
         }
 
         if (Bloom.checked)
