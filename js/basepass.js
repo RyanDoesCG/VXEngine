@@ -37,11 +37,11 @@ var basePassVertexShaderSource =
         float y = random(vec2(0.0, Time) * 0.2) * 1.0;
 
         mat4 jitter_proj = proj;
-        if (ShouldJitter == 1)
-        {
-            jitter_proj[2][0] = (x * 2.0 - 1.0) / WindowSize.x;
-            jitter_proj[2][1] = (y * 2.0 - 1.0) / WindowSize.y;
-        }
+        //if (ShouldJitter == 1)
+        //{
+        //    jitter_proj[2][0] = (x * 2.0 - 1.0) / WindowSize.x;
+        //    jitter_proj[2][1] = (y * 2.0 - 1.0) / WindowSize.y;
+        //}
 
         frag_worldpos = transform * vec4(vertex_position, 1.0);
         gl_Position = jitter_proj * view * frag_worldpos;
@@ -125,7 +125,7 @@ var basePassFragmentShaderSourceBody = `
         vec3 rayjitter = vec3(0.0);
         if (ShouldJitter == 1)
         {
-            rayjitter = vec3(random(), random(), 0.0) * 0.00025;
+            rayjitter = vec3(random(-1.0, 1.0), random(-1.0, 1.0), 0.0) * 0.0001;
         }
 
         vec2 screenUV = gl_FragCoord.xy / vec2(WindowSize.xy);

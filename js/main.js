@@ -238,7 +238,7 @@
     function BuildScene()
     {
         NVoxels = 0
-        VolumeSize = [512.0, 30.0, 512.0]
+        VolumeSize = [300.0, 64.0, 300.0]
         VoxelTextureData = new Uint8Array(VolumeSize[0] * VolumeSize[1] * VolumeSize[2]);
         for (var z = 0; z < VolumeSize[2]; ++z) 
         {
