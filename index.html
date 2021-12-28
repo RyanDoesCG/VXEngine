@@ -9,66 +9,20 @@
     </head>
     <body>
 
-        <div id="ui"></div>
+        <div id="ui">
+        </div>
         <div id="notes">
-
-            <p>- TAA Smearing Improvements</p>
-            <p>- Explicit Lights</p>
-            <p>- Transparency Pass</p>
-            <p>- Multiple Volumes </p>
-            <p>- Physics </p>
         </div>
         <div id="size">
         </div>
         <div id="loading"><p>loading</p></div>
 
         <div id="controls">
-            <!--
-            <label class="container"><p>Ambient Occlusion</p>
-                <input type="checkbox" id="AOOn" checked="checked">
-                <span class="checkmark"></span>
-              </label>
-              
-            <label class="container"><p>Bloom</p>
-                <input type="checkbox" id="BloomOn" checked="checked">
-                <span class="checkmark"></span>
-            </label>
-              
-            <label class="container"><p>Depth of Field</p>
-                <input type="checkbox" id="DoFOn" checked="checked">
-                <span class="checkmark"></span>
-            </label>
-              
-            <label class="container"><p>Fog</p>
-                <input type="checkbox" id="FogOn" checked="checked">
-                <span class="checkmark"></span>
-            </label>
-
-            <label class="container"><p>TAA</p>
-                <input type="checkbox" id="TAAOn" checked="checked">
-                <span class="checkmark"></span>
-            </label>
-            -->
-
-            
-            <input type="checkbox" id="AOOn" name="AOOn" checked>
-            <label for="AOOn">Ambient Occlusion</label>
-            <br>
-            <br>
-            <input type="checkbox" id="TAAOn" name="TAAOn" checked>
-            <label for="TSAAOn">TAA</label>
-            <br>
-            <br>
-            <input type="checkbox" id="DoFOn" name="DoFOn" checked>
-            <label for="DoFOn">Depth of Field</label>
-            <br>
-            <br>
-            <input type="checkbox" id="FogOn" name="FogOn" checked>
-            <label for="FogOn">Fog</label>
-            <br>
-            <br>
-            <input type="checkbox" id="BloomOn" name="BloomOn" checked>
-            <label for="BloomOn">Bloom</label>
+            <input type="checkbox" id="AOOn" name="AOOn" checked><label for="AOOn">Ambient Occlusion</label><br><br>
+            <input type="checkbox" id="TAAOn" name="TAAOn" checked><label for="TSAAOn">TAA</label><br><br>
+            <input type="checkbox" id="DoFOn" name="DoFOn" checked><label for="DoFOn">Depth of Field</label><br><br>
+            <input type="checkbox" id="FogOn" name="FogOn" checked><label for="FogOn">Fog</label><br><br>
+            <input type="checkbox" id="BloomOn" name="BloomOn" checked><label for="BloomOn">Bloom</label>
         </div>
 
         <canvas width="600" height="600" id="canv"></canvas>
@@ -78,7 +32,8 @@
         <script src="js/core/shaders.js"></script>
         <script src="js/core/texture.js"></script>
         <script src="js/core/framebuffer.js"></script>
-        
+        <script src="js/core/view.js"></script>
+
         <script src="js/voxel.js"></script>
         <script src="js/prepass.js"></script>
         <script src="js/basepass.js"></script>

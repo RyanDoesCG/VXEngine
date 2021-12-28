@@ -235,7 +235,7 @@
                 VolumePosition,
                 VoxelTextureData,
                 CameraPosition,
-                CameraForward
+                View.CameraForward
             )
     
             if (IntersectionVoxelIndex[0] != -1)
@@ -283,23 +283,14 @@
     var Far = 1000.0
     var FOV = 45.0;
 
-    var projMatrix        = identity();
-    var worldToViewMatrix = identity();
-    var viewToWorldMatrix = identity();
-    var modelMatrix       = identity();
-
-    //    ax + by + cz + d = 0
-    var FrustumTop    = [ 0.0, 0.0, 0.0, 0.0 ]
-    var FrustumBottom = [ 0.0, 0.0, 0.0, 0.0 ]
-    var FrustumFront  = [ 0.0, 0.0, 0.0, 0.0 ]
-    var FrustumBack   = [ 0.0, 0.0, 0.0, 0.0 ]
-    var FrustumLeft   = [ 0.0, 0.0, 0.0, 0.0 ]
-    var FrustumRight  = [ 0.0, 0.0, 0.0, 0.0 ]
-
-    var CameraForward = FORWARD;
-    var CameraRight = RIGHT;
-    var CameraUp = UP;
-
+    var View = new ViewData(
+        CameraPosition, 
+        CameraRotation, 
+        canvas.clientWidth, 
+        canvas.clientHeight, 
+        Near, 
+        Far, 
+        FOV)
 
     var VolumeMin
     var VolumeMax
@@ -307,29 +298,14 @@
 
     function ComputeView () 
     {
-        projMatrix = perspective(FOV, Near, Far, canvas.clientWidth, canvas.clientHeight)
-
-        worldToViewMatrix = identity()
-        worldToViewMatrix = multiplym(translate(-CameraPosition[0], -CameraPosition[1], -CameraPosition[2]), worldToViewMatrix)
-        worldToViewMatrix = multiplym(rotate(CameraRotation[0], CameraRotation[1], CameraRotation[2]), worldToViewMatrix) 
-        
-        viewToWorldMatrix = identity()
-        viewToWorldMatrix = multiplym(translate(CameraPosition[0], CameraPosition[1], CameraPosition[2]), viewToWorldMatrix)
-        viewToWorldMatrix = multiplym(rotateRev(-CameraRotation[0], -CameraRotation[1], -CameraRotation[2]), viewToWorldMatrix)
-
-        CameraForward = normalize(multiplyv(FORWARD, viewToWorldMatrix))
-        CameraRight = normalize(multiplyv(RIGHT, viewToWorldMatrix))
-        CameraUp = normalize(multiplyv(UP, viewToWorldMatrix))
-
-        let viewProj = identity()
-        viewProj = multiplym(projMatrix, worldToViewMatrix)
-
-        FrustumLeft   = [ access(viewProj, 0, 3) + access(viewProj, 0, 0), access(viewProj, 1, 3) + access(viewProj, 1, 0), access(viewProj, 2, 3) + access(viewProj, 2, 0), access(viewProj, 3, 3) + access(viewProj, 3, 0)]
-        FrustumRight  = [ access(viewProj, 0, 3) - access(viewProj, 0, 0), access(viewProj, 1, 3) - access(viewProj, 1, 0), access(viewProj, 2, 3) - access(viewProj, 2, 0), access(viewProj, 3, 3) - access(viewProj, 3, 0)]
-        FrustumTop    = [ access(viewProj, 1, 3) - access(viewProj, 1, 1), access(viewProj, 2, 3) - access(viewProj, 2, 1), access(viewProj, 0, 3) - access(viewProj, 0, 1), access(viewProj, 3, 3) - access(viewProj, 3, 1)]
-        FrustumBottom = [ access(viewProj, 0, 3) + access(viewProj, 0, 1), access(viewProj, 1, 3) + access(viewProj, 1, 1), access(viewProj, 2, 3) + access(viewProj, 2, 1), access(viewProj, 3, 3) + access(viewProj, 3, 1)]
-        FrustumFront  = [ access(viewProj, 0, 3) + access(viewProj, 0, 2), access(viewProj, 1, 3) + access(viewProj, 1, 2), access(viewProj, 2, 3) + access(viewProj, 2, 2), access(viewProj, 3, 3) + access(viewProj, 3, 2)]
-        FrustumBack   = [ access(viewProj, 0, 3) - access(viewProj, 0, 2), access(viewProj, 1, 3) - access(viewProj, 1, 2), access(viewProj, 2, 3) - access(viewProj, 2, 2), access(viewProj, 3, 3) - access(viewProj, 3, 2)]
+        View = new ViewData(
+            CameraPosition, 
+            CameraRotation, 
+            canvas.clientWidth, 
+            canvas.clientHeight, 
+            Near, 
+            Far, 
+            FOV)
 
         VolumeMin = [
             VolumePosition[0] - (VolumeSize[0] * 0.5),
@@ -346,9 +322,8 @@
             VolumeMin[1] < CameraPosition[1] && CameraPosition[1] < VolumeMax[1] &&
             VolumeMin[2] < CameraPosition[2] && CameraPosition[2] < VolumeMax[2]; 
 
-
         var LastView = ViewTransforms.pop();
-        ViewTransforms.unshift(multiplym(projMatrix, worldToViewMatrix))
+        ViewTransforms.unshift(multiplym(View.ProjectionMatrix, View.WorldToViewMatrix))
         
         var LastBuffer = LightingBuffers.pop();
         LightingBuffers.unshift(LastBuffer);
@@ -369,8 +344,8 @@
 
         gl.useProgram(prePassShaderProgram);
 
-        gl.uniformMatrix4fv(prePassProjectionMatrixLocation, false, projMatrix)
-        gl.uniformMatrix4fv(prePassViewMatrixLocation, false, worldToViewMatrix)
+        gl.uniformMatrix4fv(prePassProjectionMatrixLocation, false, View.ProjectionMatrix)
+        gl.uniformMatrix4fv(prePassViewMatrixLocation, false, View.WorldToViewMatrix)
         gl.uniformMatrix4fv(prePassTransformMatrixLocation, false, Volume)
         gl.uniform1f(prePassTimeUniformLocation, frameID)
         gl.uniform2fv(prePassWindowSizeUniformLocation, [ canvas.width, canvas.height ])          
@@ -392,7 +367,7 @@
 
         if (TAA.checked || Bloom.checked || DoF.checked || Fog.checked)
         {
-            basePassFrameBuffer = createFramebuffer(gl, LightingBuffers[0], worldposBuffer,bloomBuffer)
+            basePassFrameBuffer = createFramebuffer(gl, LightingBuffers[0], worldposBuffer, bloomBuffer)
             gl.bindFramebuffer(gl.FRAMEBUFFER, basePassFrameBuffer);
             gl.drawBuffers([
                 gl.COLOR_ATTACHMENT0, 
@@ -439,14 +414,14 @@
 
         gl.uniform2fv(basePassWindowSizeLocation, [canvas.width, canvas.height])
         gl.uniform1f(basePassTimeUniform, frameID);
-        gl.uniformMatrix4fv(basePassProjMatrixLocation, false, projMatrix)
-        gl.uniformMatrix4fv(basePassViewMatrixLocation, false, worldToViewMatrix)
+        gl.uniformMatrix4fv(basePassProjMatrixLocation, false, View.ProjectionMatrix)
+        gl.uniformMatrix4fv(basePassViewMatrixLocation, false, View.WorldToViewMatrix)
         gl.uniform1i(basePassAmbientOcclusionUniform, AO.checked ? 1 : 0)
         gl.uniform1i(basePassJitterUniform, TAA.checked ? 1 : 0);
         gl.uniform4fv(basePassCameraPositionUniform, CameraPosition)
         gl.uniform3fv(basePassVolumePositionUniform, VolumePosition)
         gl.uniform3fv(basePassVolumeSizeUniform, VolumeSize)
-        gl.uniform3iv(basePassSelectedVoxelUniform,IntersectionVoxelIndex);
+        gl.uniform3iv(basePassSelectedVoxelUniform, IntersectionVoxelIndex);
         gl.bindVertexArray(boxGeometryVertexArray);
 
         gl.uniformMatrix4fv(basePassTransformLocation, false, Volume);
@@ -528,7 +503,7 @@
         gl.uniformMatrix4fv(TAAPassView14Uniform,  false, ViewTransforms[14])
 
         gl.uniform4fv(TAAPassCameraPositionUniform, CameraPosition)
-        gl.uniform4fv(TAAPassCameraForwardUniform, multiplyv(FORWARD, viewToWorldMatrix))
+        gl.uniform4fv(TAAPassCameraForwardUniform, View.CameraForward)
         gl.uniform1f(TAAPassNearUniform, Near);
         gl.uniform1f(TAAPassFarUniform, Far);
         gl.uniform1f(TAAPassTimeUniform, frameID);
@@ -659,9 +634,9 @@
             CameraPosition[2].toFixed(1) + "</p>"
         
         ui.innerHTML += "<p>" + 
-            CameraForward[0].toFixed(1) + ", " + 
-            CameraForward[1].toFixed(1) + ", " + 
-            CameraForward[2].toFixed(1) + "</p>"
+            View.CameraForward[0].toFixed(1) + ", " + 
+            View.CameraForward[1].toFixed(1) + ", " + 
+            View.CameraForward[2].toFixed(1) + "</p>"
 
         ui.innerHTML +="<p>" + NVoxels.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " boxes in scene </p>";
 
@@ -707,14 +682,14 @@
         }
 
         var CameraForwardXZ = [
-            CameraForward[0],
+            View.CameraForward[0],
             0.0,
-            CameraForward[2],
+            View.CameraForward[2],
             0.0
         ]
 
-        if (DPressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraRight,  speed))
-        if (APressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraRight, -speed))
+        if (DPressed) CameraVelocity = addv(CameraVelocity, multiplys(View.CameraRight,  speed))
+        if (APressed) CameraVelocity = addv(CameraVelocity, multiplys(View.CameraRight, -speed))
         if (WPressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraForwardXZ, speed))
         if (SPressed) CameraVelocity = addv(CameraVelocity, multiplys(CameraForwardXZ, -speed))
         if (QPressed) CameraVelocity[1] -= speed
