@@ -230,8 +230,8 @@ class TAAPass
             0,
             this.gl.RGBA, 
             0, 0,
-            this.Width,
-            this.Height,
+            this.width,
+            this.height,
             0);
     }
 }
