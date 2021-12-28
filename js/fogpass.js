@@ -62,12 +62,15 @@ class FogPass
         this.gl.clearColor(0.0, 0.0, 0.0, 0);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
         this.gl.useProgram(this.ShaderProgram);
+
         this.gl.activeTexture(this.gl.TEXTURE0);
         this.gl.bindTexture(this.gl.TEXTURE_2D, inSceneTexture);
         this.gl.uniform1i(this.SceneTextureUniformLocation, 0);
+        
         this.gl.activeTexture(this.gl.TEXTURE1);
         this.gl.bindTexture(this.gl.TEXTURE_2D, inPositionTexture);
         this.gl.uniform1i(this.PositionTextureUniformLocation, 1);
+        
         this.gl.bindVertexArray(mesh);
         this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);  
     }

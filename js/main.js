@@ -26,11 +26,6 @@
     let UP = vec4(0.0, 1.0, 0.0, 0.0);
 
     // SHADERS
-    console.log("compiling bloom shader")
-    var bloomPassShaderProgram = createProgram(gl,
-        createShader (gl, gl.VERTEX_SHADER, bloomPassVertexShaderSource),
-        createShader (gl, gl.FRAGMENT_SHADER, bloomPassFragmentShaderSource))
-
     console.log("compiling prepass shader")
     var prePassShaderProgram = createProgram(gl, 
         createShader (gl, gl.VERTEX_SHADER, prePassVertexShaderSource),
@@ -53,13 +48,10 @@
         createShader(gl, gl.VERTEX_SHADER, BlurPassVertexShaderSource),
         createShader(gl, gl.FRAGMENT_SHADER, BlurPassFragmentShaderSource))
     
-    console.log("compiling dof shader")
-    var DoFPassShaderProgram = createProgram(gl,
-        createShader(gl, gl.VERTEX_SHADER, DoFVertexShaderSource),
-        createShader(gl, gl.FRAGMENT_SHADER, DoFFragmentShaderSource))
-
+    var DepthOfFieldRenderPass = new DepthOfFieldPass(gl, canvas.width, canvas.height)
     var FogRenderPass = new FogPass(gl, canvas.width, canvas.height);
-        
+    var BloomRenderPass = new BloomPass(gl, canvas.width, canvas.height)
+
     // FRAME BUFFERS
     var prepassBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
     var worldposBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
@@ -86,9 +78,6 @@
     var prePassFrameBuffer = createFramebuffer(gl, prepassBuffer)
     var basePassFrameBuffer
 
-    var bloomPassBuffer =  createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
-    var bloomPassFrameBuffer = createFramebuffer(gl, bloomPassBuffer)
-
     var fogPassBuffer= createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
     var fogPassFramebuffer = createFramebuffer(gl, fogPassBuffer)
 
@@ -109,10 +98,6 @@
     var BloomBlurBufferB = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
     var BloomBlurFrameBufferB = createFramebuffer(gl, 
         BloomBlurBufferB)
-
-    var DoFBuffer = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
-    var DoFFramebuffer = createFramebuffer(gl, 
-        DoFBuffer)
 
     // TEXTURES
     var WhiteNoiseTexture = loadTexture(gl, 'images/noise/white.png')
@@ -177,13 +162,6 @@
     var BlurPassFrameUniform = gl.getUniformLocation(BlurPassShaderProgram, "FrameTexture")
     var BlurPassHorizontalUniform = gl.getUniformLocation(BlurPassShaderProgram, "horizontal")
     var BlurPassOffsetScaleUniform = gl.getUniformLocation(BlurPassShaderProgram, "offsetScale")
-    
-    var DoFPassBluredFrameUniform = gl.getUniformLocation(DoFPassShaderProgram, "BlurredScene");
-    var DoFPassUnblurredFrameUniform = gl.getUniformLocation(DoFPassShaderProgram, "UnblurredScene")
-    var DoFPassDepthUniform = gl.getUniformLocation(DoFPassShaderProgram, "WorldPositionBuffer");
-
-    var BloomPassBluredFrameUniform = gl.getUniformLocation(bloomPassShaderProgram, "BlurredScene");
-    var BloomPassUnblurredFrameUniform = gl.getUniformLocation(bloomPassShaderProgram, "UnblurredScene")
 
     // Screen Pass Geometry Resources
     var screenGeometryVertexArray = gl.createVertexArray();
@@ -694,89 +672,6 @@
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
-    function DepthOfFieldPass()
-    {
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        if (Fog.checked || Bloom.checked)
-        {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, DoFFramebuffer);
-        }
-        else
-        {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-        }
-
-        gl.clearColor(0.0, 0.0, 0.0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.useProgram(DoFPassShaderProgram);
-    
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, BaseBlurBufferB);
-        gl.uniform1i(DoFPassBluredFrameUniform, 0);
-
-        gl.activeTexture(gl.TEXTURE1);
-
-        if (TAA.checked)
-        {
-            gl.bindTexture(gl.TEXTURE_2D, AABuffer)
-        }
-        else
-        {
-            gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
-        }
-
-        gl.uniform1i(DoFPassUnblurredFrameUniform, 1);
-
-        gl.activeTexture(gl.TEXTURE2);
-        gl.bindTexture(gl.TEXTURE_2D, worldposBuffer);
-        gl.uniform1i(DoFPassDepthUniform, 2);
-
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-    }
-
-    function BloomPass ()
-    {
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-        gl.clearColor(0.0, 0.0, 0.0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.useProgram(bloomPassShaderProgram);
-    
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, BloomBlurBufferB);
-        gl.uniform1i(BloomPassBluredFrameUniform, 0);
-
-        gl.activeTexture(gl.TEXTURE1);
-        if (Fog.checked)
-        {
-            gl.bindTexture(gl.TEXTURE_2D, FogRenderPass.output);
-        }
-        else
-        {
-            if (DoF.checked)
-            {
-                gl.bindTexture(gl.TEXTURE_2D, DoFBuffer);
-            }
-            else
-            {
-                if (TAA.checked)
-                {
-                    gl.bindTexture(gl.TEXTURE_2D, AABuffer);
-                }
-                else
-                {
-                    gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0]);
-                }
-            }
-        }
-        gl.uniform1i(BloomPassUnblurredFrameUniform, 1);
-
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);   
-    }
-
     function Render () 
     {
         var LastBuffer = null
@@ -796,12 +691,17 @@
         }
 
         BlurPass();
-        LastBuffer = BaseBlurBufferB
             
         if (DoF.checked)
         {
-            DepthOfFieldPass();
-            LastBuffer = DoFBuffer
+            DepthOfFieldRenderPass.Render(
+                screenGeometryVertexArray,
+                LastBuffer,
+                BaseBlurBufferB,
+                worldposBuffer,
+                Fog.checked||Bloom.checked?false:true
+            )
+            LastBuffer = DepthOfFieldRenderPass.output
         }
 
         if (Fog.checked)
@@ -811,11 +711,17 @@
                 LastBuffer,
                 worldposBuffer,
                 Bloom.checked?false:true)
+            LastBuffer = FogRenderPass.output
         }
 
         if (Bloom.checked)
         {
-            BloomPass();
+            BloomRenderPass.Render(
+                screenGeometryVertexArray,
+                LastBuffer,
+                BloomBlurBufferB,
+                worldposBuffer,
+                true)
         }
     }
 
