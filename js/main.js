@@ -36,17 +36,11 @@
         createShader  (gl, gl.VERTEX_SHADER,   basePassVertexShaderSource), 
         createShader  (gl, gl.FRAGMENT_SHADER, basePassFragmentShaderSourceHeader + voxelShaderSource + basePassFragmentShaderSourceBody));
 
-    console.log("compiling TAA shader")
-    var TAAPassShaderProgram = createProgram(gl,
-        createShader(gl, gl.VERTEX_SHADER, TAAPassVertexShaderSource),
-        createShader(gl, gl.FRAGMENT_SHADER, 
-            TAAPassFragmentShaderHeaderSource +
-            TAAPassFragmentShaderFooterSource))
-
-    var BlurRenderPass         = new BlurPass(gl, canvas.width, canvas.height)
-    var DepthOfFieldRenderPass = new DepthOfFieldPass(gl, canvas.width, canvas.height)
-    var FogRenderPass          = new FogPass(gl, canvas.width, canvas.height);
-    var BloomRenderPass        = new BloomPass(gl, canvas.width, canvas.height)
+    var TAARenderPass          = new TAAPass          (gl, canvas.width, canvas.height)
+    var BlurRenderPass         = new BlurPass         (gl, canvas.width, canvas.height)
+    var DepthOfFieldRenderPass = new DepthOfFieldPass (gl, canvas.width, canvas.height)
+    var FogRenderPass          = new FogPass          (gl, canvas.width, canvas.height)
+    var BloomRenderPass        = new BloomPass        (gl, canvas.width, canvas.height)
 
     // FRAME BUFFERS
     var prepassBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
@@ -54,7 +48,7 @@
     var bloomBuffer = createColourTexture(gl, Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
 
     // TAA History
-    let NumHistorySamples = 15;
+    let NumHistorySamples = 5;
     var LightingBuffers = [NumHistorySamples]
     for (var i = 0; i < NumHistorySamples; ++i)
         LightingBuffers[i] = createColourTexture(gl, 
@@ -62,20 +56,12 @@
             canvas.height, 
             gl.RGBA, gl.UNSIGNED_BYTE)
 
-    var AABuffer = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
-    var AAFrameBuffer = createFramebuffer(gl, 
-        AABuffer,
-        bloomBuffer)
-
     var ViewTransforms = [NumHistorySamples]
     for (var i = 0; i < NumHistorySamples; ++i)
         ViewTransforms[i] = identity()
 
     var prePassFrameBuffer = createFramebuffer(gl, prepassBuffer)
     var basePassFrameBuffer
-
-    var fogPassBuffer= createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
-    var fogPassFramebuffer = createFramebuffer(gl, fogPassBuffer)
 
     // TEXTURES
     var WhiteNoiseTexture = loadTexture(gl, 'images/noise/white.png')
@@ -113,29 +99,6 @@
     var basePassWhiteNoiseSampler = gl.getUniformLocation(basePassShaderProgram, "WhiteNoise")
     var basePassBlueNoiseSampler = gl.getUniformLocation(basePassShaderProgram, "BlueNoise")
     var basePassTBufferSampler = gl.getUniformLocation(basePassShaderProgram, "TBuffer")
-
-    var TAAPassWorldPositionBufferSampler = gl.getUniformLocation(TAAPassShaderProgram, "WorldPositionBuffer")
-    var TAAPassFrameBufferSamplers = gl.getUniformLocation(TAAPassShaderProgram, "Frames")
-    var TAAPassView0Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View0")
-    var TAAPassView1Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View1")
-    var TAAPassView2Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View2")
-    var TAAPassView3Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View3")
-    var TAAPassView4Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View4")
-    var TAAPassView5Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View5")
-    var TAAPassView6Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View6")
-    var TAAPassView7Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View7")
-    var TAAPassView8Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View8")
-    var TAAPassView9Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View9")
-    var TAAPassView10Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View10")
-    var TAAPassView11Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View11")
-    var TAAPassView12Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View12")
-    var TAAPassView13Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View13")
-    var TAAPassView14Uniform = gl.getUniformLocation(TAAPassShaderProgram, "View14")
-    var TAAPassCameraPositionUniform = gl.getUniformLocation(TAAPassShaderProgram, "CameraPosition")
-    var TAAPassCameraForwardUniform = gl.getUniformLocation(TAAPassShaderProgram, "CameraForward")
-    var TAAPassNearUniform = gl.getUniformLocation(TAAPassShaderProgram, "Near")
-    var TAAPassFarUniform = gl.getUniformLocation(TAAPassShaderProgram, "Far")
-    var TAAPassTimeUniform = gl.getUniformLocation(TAAPassShaderProgram, "Time")
 
     // Screen Pass Geometry Resources
     var screenGeometryVertexArray = gl.createVertexArray();
@@ -431,100 +394,6 @@
         gl.disable(gl.CULL_FACE)
     }
 
-    function TAAPass () 
-    {
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        if (DoF.checked || Bloom.checked || Fog.checked)
-        {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, AAFrameBuffer);
-            gl.drawBuffers([
-                gl.COLOR_ATTACHMENT0, 
-                gl.COLOR_ATTACHMENT1]);
-        }
-        else
-        {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        }
-
-        gl.clearColor(0.0, 0.0, 0.0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.useProgram(TAAPassShaderProgram);
-
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, worldposBuffer);
-        gl.uniform1i(TAAPassWorldPositionBufferSampler, 0);
-
-        gl.activeTexture(gl.TEXTURE2);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0]);
-        gl.activeTexture(gl.TEXTURE3);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[1]);
-        gl.activeTexture(gl.TEXTURE4);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[2]);
-        gl.activeTexture(gl.TEXTURE5);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[3]);
-        gl.activeTexture(gl.TEXTURE6);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[4]);
-        gl.activeTexture(gl.TEXTURE7);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[5]);
-        gl.activeTexture(gl.TEXTURE8);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[6]);
-        gl.activeTexture(gl.TEXTURE9);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[7]);
-        gl.activeTexture(gl.TEXTURE10);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[8]);
-        gl.activeTexture(gl.TEXTURE11);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[9])
-        gl.activeTexture(gl.TEXTURE12);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[10]);
-        gl.activeTexture(gl.TEXTURE13);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[11])
-        gl.activeTexture(gl.TEXTURE14);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[12])
-        gl.activeTexture(gl.TEXTURE15);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[13])
-        gl.activeTexture(gl.TEXTURE16);
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[14])
-        gl.uniform1iv(TAAPassFrameBufferSamplers, [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
-
-        gl.uniformMatrix4fv(TAAPassView0Uniform,  false, ViewTransforms[0])
-        gl.uniformMatrix4fv(TAAPassView1Uniform,  false, ViewTransforms[1])
-        gl.uniformMatrix4fv(TAAPassView2Uniform,  false, ViewTransforms[2])
-        gl.uniformMatrix4fv(TAAPassView3Uniform,  false, ViewTransforms[3])
-        gl.uniformMatrix4fv(TAAPassView4Uniform,  false, ViewTransforms[4])
-        gl.uniformMatrix4fv(TAAPassView5Uniform,  false, ViewTransforms[5])
-        gl.uniformMatrix4fv(TAAPassView6Uniform,  false, ViewTransforms[6])
-        gl.uniformMatrix4fv(TAAPassView7Uniform,  false, ViewTransforms[7])
-        gl.uniformMatrix4fv(TAAPassView8Uniform,  false, ViewTransforms[8])
-        gl.uniformMatrix4fv(TAAPassView9Uniform,  false, ViewTransforms[9])
-        gl.uniformMatrix4fv(TAAPassView10Uniform,  false, ViewTransforms[10])
-        gl.uniformMatrix4fv(TAAPassView11Uniform,  false, ViewTransforms[11])
-        gl.uniformMatrix4fv(TAAPassView12Uniform,  false, ViewTransforms[12])
-        gl.uniformMatrix4fv(TAAPassView13Uniform,  false, ViewTransforms[13])
-        gl.uniformMatrix4fv(TAAPassView14Uniform,  false, ViewTransforms[14])
-
-        gl.uniform4fv(TAAPassCameraPositionUniform, CameraPosition)
-        gl.uniform4fv(TAAPassCameraForwardUniform, View.CameraForward)
-        gl.uniform1f(TAAPassNearUniform, Near);
-        gl.uniform1f(TAAPassFarUniform, Far);
-        gl.uniform1f(TAAPassTimeUniform, frameID);
-
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        
-        // Using the anti-aliased image as the history sample
-        // much better quality, bad ghosting
-        gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
-        gl.copyTexImage2D(
-            gl.TEXTURE_2D, 
-            0,
-            gl.RGBA, 
-            0, 0,
-            canvas.width,
-            canvas.height,
-            0);
-    }
-
     function Render () 
     {
         var LastBuffer = null
@@ -539,8 +408,14 @@
 
         if (TAA.checked) 
         {
-            TAAPass();
-            LastBuffer = AABuffer
+            TAARenderPass.Render(
+                screenGeometryVertexArray,
+                LightingBuffers,
+                worldposBuffer,
+                ViewTransforms,
+                Fog.checked||Bloom.checked||DoF.checked?false:true
+            )
+            LastBuffer = TAARenderPass.outputColour
         }
 
         if (DoF.checked)
@@ -573,7 +448,7 @@
         {
             BlurRenderPass.Render(
                 screenGeometryVertexArray,
-                bloomBuffer,
+                TAA.checked?TAARenderPass.outputBloom:bloomBuffer,
                 2.0)
             BlurRenderPass.Render(
                 screenGeometryVertexArray,
