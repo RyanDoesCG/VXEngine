@@ -17,25 +17,17 @@
     var controls = document.getElementById("controls")
     var size = document.getElementById("size")
 
-    var extensions = gl.getSupportedExtensions();
+    //var extensions = gl.getSupportedExtensions();
     //console.log(extensions)
     gl.getExtension('EXT_color_buffer_float');
 
-    let FORWARD = vec4(0.0, 0.0, -1.0, 0.0);
-    let RIGHT = vec4(1.0, 0.0, 0.0, 0.0);
-    let UP = vec4(0.0, 1.0, 0.0, 0.0);
-
     // SHADERS
-    console.log("compiling prepass shader")
-    var prePassShaderProgram = createProgram(gl, 
-        createShader (gl, gl.VERTEX_SHADER, prePassVertexShaderSource),
-        createShader (gl, gl.FRAGMENT_SHADER, prePassFragmentShaderSource))
-
     console.log("compiling basepass shader")
     var basePassShaderProgram  = createProgram (gl, 
         createShader  (gl, gl.VERTEX_SHADER,   basePassVertexShaderSource), 
-        createShader  (gl, gl.FRAGMENT_SHADER, basePassFragmentShaderSourceHeader + voxelShaderSource + basePassFragmentShaderSourceBody));
+        createShader  (gl, gl.FRAGMENT_SHADER, basePassFragmentShaderSource));
 
+    var PreRenderPass          = new BackfacePrePass  (gl, canvas.width, canvas.height)  
     var TAARenderPass          = new TAAPass          (gl, canvas.width, canvas.height)
     var BlurRenderPass         = new BlurPass         (gl, canvas.width, canvas.height)
     var DepthOfFieldRenderPass = new DepthOfFieldPass (gl, canvas.width, canvas.height)
@@ -43,7 +35,6 @@
     var BloomRenderPass        = new BloomPass        (gl, canvas.width, canvas.height)
 
     // FRAME BUFFERS
-    var prepassBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
     var worldposBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
     var bloomBuffer = createColourTexture(gl, Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
 
@@ -60,7 +51,6 @@
     for (var i = 0; i < NumHistorySamples; ++i)
         ViewTransforms[i] = identity()
 
-    var prePassFrameBuffer = createFramebuffer(gl, prepassBuffer)
     var basePassFrameBuffer
 
     // TEXTURES
@@ -75,15 +65,6 @@
     var VoxelTexture
 
     // UNIFORMS
-    var prePassProjectionMatrixLocation      = gl.getUniformLocation(prePassShaderProgram, "proj")
-    var prePassViewMatrixLocation            = gl.getUniformLocation(prePassShaderProgram, "view")
-    var prePassTransformMatrixLocation       = gl.getUniformLocation(prePassShaderProgram, "transform")
-    var prePassTimeUniformLocation           = gl.getUniformLocation(prePassShaderProgram, "Time")
-    var prePassWindowSizeUniformLocation     = gl.getUniformLocation(prePassShaderProgram, "WindowSize")
-    var prePassShouldJitterUniformLocation   = gl.getUniformLocation(prePassShaderProgram, "ShouldJitter")
-    var prePassCameraPositionUniformLocation = gl.getUniformLocation(prePassShaderProgram, "CameraPosition")
-    var prePassWhiteNoiseSamplerLocation     = gl.getUniformLocation(prePassShaderProgram, "WhiteNoise")
-
     var basePassTransformLocation = gl.getUniformLocation(basePassShaderProgram, "transform")
     var basePassViewMatrixLocation = gl.getUniformLocation(basePassShaderProgram, "view");
     var basePassProjMatrixLocation = gl.getUniformLocation(basePassShaderProgram, "proj")
@@ -292,38 +273,6 @@
         LightingBuffers.unshift(LastBuffer);
     }
 
-    // RENDER PASSES
-    function PrePass ()
-    {
-        gl.viewport(0, 0, canvas.width, canvas.height)
-        gl.bindFramebuffer(gl.FRAMEBUFFER, prePassFrameBuffer)
-
-        gl.clearColor(0.0, 0.0, 0.0, 0.0);
-        gl.clear(gl.COLOR_BUFFER_BIT)
-        gl.clear(gl.DEPTH_BUFFER_BIT)
-
-        gl.enable(gl.CULL_FACE)
-        gl.cullFace(gl.FRONT)
-
-        gl.useProgram(prePassShaderProgram);
-
-        gl.uniformMatrix4fv(prePassProjectionMatrixLocation, false, View.ProjectionMatrix)
-        gl.uniformMatrix4fv(prePassViewMatrixLocation, false, View.WorldToViewMatrix)
-        gl.uniformMatrix4fv(prePassTransformMatrixLocation, false, Volume)
-        gl.uniform1f(prePassTimeUniformLocation, frameID)
-        gl.uniform2fv(prePassWindowSizeUniformLocation, [ canvas.width, canvas.height ])          
-        gl.uniform1i(prePassShouldJitterUniformLocation, TAA.checked ? 1 : 0);
-        gl.uniform4fv(prePassCameraPositionUniformLocation, CameraPosition)
-
-        gl.uniform1i(prePassWhiteNoiseSamplerLocation, 0);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, WhiteNoiseTexture);
-
-        gl.drawArraysInstanced(gl.TRIANGLES, 0, boxGeometryPositions.length / 3, 1);
-        
-        gl.disable(gl.CULL_FACE)
-    }
-
     function BasePass () 
     {
         gl.viewport(0, 0, canvas.width, canvas.height);
@@ -373,7 +322,7 @@
 
         gl.uniform1i(basePassTBufferSampler, 3)
         gl.activeTexture(gl.TEXTURE3)
-        gl.bindTexture(gl.TEXTURE_2D, prepassBuffer)
+        gl.bindTexture(gl.TEXTURE_2D, PreRenderPass.output)
 
         gl.uniform2fv(basePassWindowSizeLocation, [canvas.width, canvas.height])
         gl.uniform1f(basePassTimeUniform, frameID);
@@ -399,8 +348,16 @@
         var LastBuffer = null
         if (!CameraInVolume)
         {
-            PrePass();
-            LastBuffer = prepassBuffer
+            PreRenderPass.Render(
+                boxGeometryVertexArray,
+                boxGeometryPositions.size / 3,
+                View,
+                Volume,
+                frameID,
+                [canvas.width, canvas.height],
+                TAA.checked?true:false,
+                WhiteNoiseTexture,
+                CameraPosition)
         }
 
         BasePass();
@@ -453,7 +410,7 @@
             BlurRenderPass.Render(
                 screenGeometryVertexArray,
                 BlurRenderPass.output,
-                4.0)
+                8.0)
             BloomRenderPass.Render(
                 screenGeometryVertexArray,
                 LastBuffer,
