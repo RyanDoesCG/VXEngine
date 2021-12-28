@@ -5,7 +5,7 @@ class FogPass
         this.gl = context
 
         this.VertexShaderSource = 
-            `#version 300 es
+           `#version 300 es
             precision lowp float;
             in vec4 vertex_position;
             in vec2 vertex_uvs;
@@ -17,7 +17,7 @@ class FogPass
             }`
  
         this.FragmentShaderSource = 
-            `#version 300 es
+           `#version 300 es
             precision lowp float;
             uniform sampler2D SceneTexture;
             uniform sampler2D PositionTexture;
@@ -70,7 +70,7 @@ class FogPass
         this.gl.activeTexture(this.gl.TEXTURE1);
         this.gl.bindTexture(this.gl.TEXTURE_2D, inPositionTexture);
         this.gl.uniform1i(this.PositionTextureUniformLocation, 1);
-        
+
         this.gl.bindVertexArray(mesh);
         this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);  
     }
