@@ -43,14 +43,10 @@
             TAAPassFragmentShaderHeaderSource +
             TAAPassFragmentShaderFooterSource))
 
-    console.log("compiling blur shader")
-    var BlurPassShaderProgram = createProgram(gl,
-        createShader(gl, gl.VERTEX_SHADER, BlurPassVertexShaderSource),
-        createShader(gl, gl.FRAGMENT_SHADER, BlurPassFragmentShaderSource))
-    
+    var BlurRenderPass         = new BlurPass(gl, canvas.width, canvas.height)
     var DepthOfFieldRenderPass = new DepthOfFieldPass(gl, canvas.width, canvas.height)
-    var FogRenderPass = new FogPass(gl, canvas.width, canvas.height);
-    var BloomRenderPass = new BloomPass(gl, canvas.width, canvas.height)
+    var FogRenderPass          = new FogPass(gl, canvas.width, canvas.height);
+    var BloomRenderPass        = new BloomPass(gl, canvas.width, canvas.height)
 
     // FRAME BUFFERS
     var prepassBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
@@ -80,24 +76,6 @@
 
     var fogPassBuffer= createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
     var fogPassFramebuffer = createFramebuffer(gl, fogPassBuffer)
-
-    // TAA History
-
-    var BaseBlurBufferA = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
-    var BaseBlurFrameBufferA = createFramebuffer(gl, 
-        BaseBlurBufferA)
-        
-    var BaseBlurBufferB = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
-    var BaseBlurFrameBufferB = createFramebuffer(gl, 
-        BaseBlurBufferB)
-
-    var BloomBlurBufferA = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
-    var BloomBlurFrameBufferA = createFramebuffer(gl, 
-        BloomBlurBufferA)
-        
-    var BloomBlurBufferB = createColourTexture(gl, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE)
-    var BloomBlurFrameBufferB = createFramebuffer(gl, 
-        BloomBlurBufferB)
 
     // TEXTURES
     var WhiteNoiseTexture = loadTexture(gl, 'images/noise/white.png')
@@ -158,10 +136,6 @@
     var TAAPassNearUniform = gl.getUniformLocation(TAAPassShaderProgram, "Near")
     var TAAPassFarUniform = gl.getUniformLocation(TAAPassShaderProgram, "Far")
     var TAAPassTimeUniform = gl.getUniformLocation(TAAPassShaderProgram, "Time")
-    
-    var BlurPassFrameUniform = gl.getUniformLocation(BlurPassShaderProgram, "FrameTexture")
-    var BlurPassHorizontalUniform = gl.getUniformLocation(BlurPassShaderProgram, "horizontal")
-    var BlurPassOffsetScaleUniform = gl.getUniformLocation(BlurPassShaderProgram, "offsetScale")
 
     // Screen Pass Geometry Resources
     var screenGeometryVertexArray = gl.createVertexArray();
@@ -576,102 +550,6 @@
             0);
     }
 
-    function BlurPass()
-    {
-        // BLUR SCENE FOR DEPTH OF FIELD
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.useProgram(BlurPassShaderProgram);
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER, BaseBlurFrameBufferA);
-        gl.clearColor(0.0, 0.0, 0.0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);        
-        gl.activeTexture(gl.TEXTURE0);
-        if (TAA.checked)
-        {
-            gl.bindTexture(gl.TEXTURE_2D, AABuffer);
-        }
-        else
-        {
-            gl.bindTexture(gl.TEXTURE_2D, LightingBuffers[0])
-        }
-        gl.uniform1i(BlurPassFrameUniform, 0);
-        gl.uniform1i(BlurPassHorizontalUniform, 0);
-        gl.uniform1f(BlurPassOffsetScaleUniform, 1.0);
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER, BaseBlurFrameBufferB);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, BaseBlurBufferA);
-        gl.uniform1i(BlurPassFrameUniform, 0);
-        gl.uniform1i(BlurPassHorizontalUniform, 1);
-        gl.uniform1f(BlurPassOffsetScaleUniform, 1.0);
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        // BLUR THE BLOOM BUFFER
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, BloomBlurFrameBufferA);
-        gl.clearColor(0.0, 0.0, 0.0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);        
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, bloomBuffer);
-        gl.uniform1i(BlurPassFrameUniform, 0);
-        gl.uniform1i(BlurPassHorizontalUniform, 0);
-        gl.uniform1f(BlurPassOffsetScaleUniform, 1.0);
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER, BloomBlurFrameBufferB);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, BloomBlurBufferA);
-        gl.uniform1i(BlurPassFrameUniform, 0);
-        gl.uniform1i(BlurPassHorizontalUniform, 1);
-        gl.uniform1f(BlurPassOffsetScaleUniform, 1.0);
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER, BloomBlurFrameBufferA);
-        gl.clearColor(0.0, 0.0, 0.0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);        
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, BloomBlurBufferB);
-        gl.uniform1i(BlurPassFrameUniform, 0);
-        gl.uniform1i(BlurPassHorizontalUniform, 0);
-        gl.uniform1f(BlurPassOffsetScaleUniform, 2.0);
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER, BloomBlurFrameBufferB);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, BloomBlurBufferA);
-        gl.uniform1i(BlurPassFrameUniform, 0);
-        gl.uniform1i(BlurPassHorizontalUniform, 1);
-        gl.uniform1f(BlurPassOffsetScaleUniform, 2.0);
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER, BloomBlurFrameBufferA);
-        gl.clearColor(0.0, 0.0, 0.0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);        
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, BloomBlurBufferB);
-        gl.uniform1i(BlurPassFrameUniform, 0);
-        gl.uniform1i(BlurPassHorizontalUniform, 0);
-        gl.uniform1f(BlurPassOffsetScaleUniform, 8.0);
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER, BloomBlurFrameBufferB);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, BloomBlurBufferA);
-        gl.uniform1i(BlurPassFrameUniform, 0);
-        gl.uniform1i(BlurPassHorizontalUniform, 1);
-        gl.uniform1f(BlurPassOffsetScaleUniform, 8.0);
-        gl.bindVertexArray(screenGeometryVertexArray);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-    }
-
     function Render () 
     {
         var LastBuffer = null
@@ -690,14 +568,15 @@
             LastBuffer = AABuffer
         }
 
-        BlurPass();
-            
         if (DoF.checked)
         {
+            BlurRenderPass.Render(
+                screenGeometryVertexArray,
+                LastBuffer)
             DepthOfFieldRenderPass.Render(
                 screenGeometryVertexArray,
                 LastBuffer,
-                BaseBlurBufferB,
+                BlurRenderPass.output,
                 worldposBuffer,
                 Fog.checked||Bloom.checked?false:true
             )
@@ -716,10 +595,13 @@
 
         if (Bloom.checked)
         {
+            BlurRenderPass.Render(
+                screenGeometryVertexArray,
+                bloomBuffer)
             BloomRenderPass.Render(
                 screenGeometryVertexArray,
                 LastBuffer,
-                BloomBlurBufferB,
+                BlurRenderPass.output,
                 worldposBuffer,
                 true)
         }
