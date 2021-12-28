@@ -572,7 +572,8 @@
         {
             BlurRenderPass.Render(
                 screenGeometryVertexArray,
-                LastBuffer)
+                LastBuffer,
+                2.0)
             DepthOfFieldRenderPass.Render(
                 screenGeometryVertexArray,
                 LastBuffer,
@@ -597,7 +598,12 @@
         {
             BlurRenderPass.Render(
                 screenGeometryVertexArray,
-                bloomBuffer)
+                bloomBuffer,
+                2.0)
+            BlurRenderPass.Render(
+                screenGeometryVertexArray,
+                BlurRenderPass.output,
+                4.0)
             BloomRenderPass.Render(
                 screenGeometryVertexArray,
                 LastBuffer,

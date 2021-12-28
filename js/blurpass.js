@@ -62,7 +62,7 @@ class BlurPass
         this.output = createColourTexture(this.gl, this.width, this.height, this.gl.RGBA, this.gl.UNSIGNED_BYTE)
     }
 
-    Render(mesh, inTexture)
+    Render(mesh, inTexture, amount)
     {
         let intermediateFramebuffer = createFramebuffer(this.gl, this.intermediate)
         let outputFramebuffer = createFramebuffer(this.gl, this.output)
@@ -78,7 +78,7 @@ class BlurPass
         this.gl.activeTexture(this.gl.TEXTURE0);
         this.gl.bindTexture(this.gl.TEXTURE_2D, inTexture);
         this.gl.uniform1i(this.InputTextureUniformLocation, 0);
-        this.gl.uniform1f(this.OffsetScaleUniformLocation, 2.0);
+        this.gl.uniform1f(this.OffsetScaleUniformLocation, amount);
         this.gl.uniform1i(this.HorizontalUniformLocation, 0);
         this.gl.bindVertexArray(mesh);
         this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
@@ -90,7 +90,7 @@ class BlurPass
         this.gl.activeTexture(this.gl.TEXTURE0);
         this.gl.bindTexture(this.gl.TEXTURE_2D, this.intermediate);
         this.gl.uniform1i(this.InputTextureUniformLocation, 0);
-        this.gl.uniform1f(this.OffsetScaleUniformLocation, 2.0);
+        this.gl.uniform1f(this.OffsetScaleUniformLocation, amount);
         this.gl.uniform1i(this.HorizontalUniformLocation, 1);
         this.gl.bindVertexArray(mesh);
         this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
