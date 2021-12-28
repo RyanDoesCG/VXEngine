@@ -35,17 +35,23 @@
     var BloomRenderPass        = new BloomPass        (gl, canvas.width, canvas.height)
 
     // FRAME BUFFERS
-    var worldposBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
+  //  var worldposBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
     var bloomBuffer = createColourTexture(gl, Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
 
     // TAA History
-    let NumHistorySamples = 5;
+    let NumHistorySamples = 8;
     var LightingBuffers = [NumHistorySamples]
     for (var i = 0; i < NumHistorySamples; ++i)
         LightingBuffers[i] = createColourTexture(gl, 
             canvas.width, 
             canvas.height, 
             gl.RGBA, gl.UNSIGNED_BYTE)
+    var WorldPositionBuffers = [NumHistorySamples]
+    for (var i = 0; i < NumHistorySamples; ++i)
+    WorldPositionBuffers[i] = createColourTexture(gl, 
+        canvas.width, 
+        canvas.height, 
+        gl.RGBA32F, gl.FLOAT)
 
     var ViewTransforms = [NumHistorySamples]
     for (var i = 0; i < NumHistorySamples; ++i)
@@ -271,6 +277,9 @@
         
         var LastBuffer = LightingBuffers.pop();
         LightingBuffers.unshift(LastBuffer);
+
+        var LastWorldBuffer = WorldPositionBuffers.pop();
+        WorldPositionBuffers.unshift(LastWorldBuffer)
     }
 
     function BasePass () 
@@ -279,7 +288,7 @@
 
         if (TAA.checked || Bloom.checked || DoF.checked || Fog.checked)
         {
-            basePassFrameBuffer = createFramebuffer(gl, LightingBuffers[0], worldposBuffer, bloomBuffer)
+            basePassFrameBuffer = createFramebuffer(gl, LightingBuffers[0], WorldPositionBuffers[0], bloomBuffer)
             gl.bindFramebuffer(gl.FRAMEBUFFER, basePassFrameBuffer);
             gl.drawBuffers([
                 gl.COLOR_ATTACHMENT0, 
@@ -368,7 +377,7 @@
             TAARenderPass.Render(
                 screenGeometryVertexArray,
                 LightingBuffers,
-                worldposBuffer,
+                WorldPositionBuffers,
                 ViewTransforms,
                 Fog.checked||Bloom.checked||DoF.checked?false:true
             )
@@ -385,7 +394,7 @@
                 screenGeometryVertexArray,
                 LastBuffer,
                 BlurRenderPass.output,
-                worldposBuffer,
+                WorldPositionBuffers[0],
                 Fog.checked||Bloom.checked?false:true
             )
             LastBuffer = DepthOfFieldRenderPass.output
@@ -396,7 +405,7 @@
             FogRenderPass.Render(
                 screenGeometryVertexArray,
                 LastBuffer,
-                worldposBuffer,
+                WorldPositionBuffers[0],
                 Bloom.checked?false:true)
             LastBuffer = FogRenderPass.output
         }
@@ -415,7 +424,7 @@
                 screenGeometryVertexArray,
                 LastBuffer,
                 BlurRenderPass.output,
-                worldposBuffer,
+                WorldPositionBuffers[0],
                 true)
         }
     }
