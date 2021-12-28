@@ -1,3 +1,7 @@
+class VoxelBasePass 
+{
+    
+}
 
 var basePassVertexShaderSource = 
     `#version 300 es
@@ -476,10 +480,10 @@ var basePassFragmentShaderSource =
     void main() 
     {        
         vec3 rayjitter = vec3(0.0);
-        if (ShouldJitter == 1)
-        {
-            rayjitter = vec3(random(-1.0, 1.0), random(-1.0, 1.0), 0.0) * 0.0001;
-        }
+        //if (ShouldJitter == 1)
+        //{
+        //    rayjitter = vec3(random(-1.0, 1.0), random(-1.0, 1.0), 0.0) * 0.0001;
+        //}
 
         vec2 screenUV = gl_FragCoord.xy / vec2(WindowSize.xy);
 

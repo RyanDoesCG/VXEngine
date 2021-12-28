@@ -35,7 +35,6 @@
     var BloomRenderPass        = new BloomPass        (gl, canvas.width, canvas.height)
 
     // FRAME BUFFERS
-  //  var worldposBuffer = createColourTexture(gl,   Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
     var bloomBuffer = createColourTexture(gl, Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
 
     // TAA History
@@ -46,6 +45,7 @@
             canvas.width, 
             canvas.height, 
             gl.RGBA, gl.UNSIGNED_BYTE)
+            
     var WorldPositionBuffers = [NumHistorySamples]
     for (var i = 0; i < NumHistorySamples; ++i)
     WorldPositionBuffers[i] = createColourTexture(gl, 
