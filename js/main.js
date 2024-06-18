@@ -27,6 +27,11 @@
         createShader  (gl, gl.VERTEX_SHADER,   basePassVertexShaderSource), 
         createShader  (gl, gl.FRAGMENT_SHADER, basePassFragmentShaderSource));
 
+    const MAX_BUFFER_WIDTH = 1024
+    const MAX_BUFFER_HEIGHT = 1024
+    canvas.width = Math.min(canvas.clientWidth, MAX_BUFFER_WIDTH)
+    canvas.height = Math.min(canvas.clientHeight, MAX_BUFFER_HEIGHT)
+
     var PreRenderPass          = new BackfacePrePass  (gl, canvas.width, canvas.height)  
     var TAARenderPass          = new TAAPass          (gl, canvas.width, canvas.height)
     var BlurRenderPass         = new BlurPass         (gl, canvas.width, canvas.height)
@@ -38,7 +43,7 @@
     var bloomBuffer = createColourTexture(gl, Math.floor(canvas.width), Math.floor(canvas.height), gl.RGBA32F, gl.FLOAT)
 
     // TAA History
-    let NumHistorySamples = 8;
+    let NumHistorySamples = 15;
     var LightingBuffers = [NumHistorySamples]
     for (var i = 0; i < NumHistorySamples; ++i)
         LightingBuffers[i] = createColourTexture(gl, 
@@ -48,10 +53,10 @@
             
     var WorldPositionBuffers = [NumHistorySamples]
     for (var i = 0; i < NumHistorySamples; ++i)
-    WorldPositionBuffers[i] = createColourTexture(gl, 
-        canvas.width, 
-        canvas.height, 
-        gl.RGBA32F, gl.FLOAT)
+        WorldPositionBuffers[i] = createColourTexture(gl, 
+            canvas.width, 
+            canvas.height, 
+            gl.RGBA32F, gl.FLOAT)
 
     var ViewTransforms = [NumHistorySamples]
     for (var i = 0; i < NumHistorySamples; ++i)

@@ -39,7 +39,7 @@ var basePassVertexShaderSource =
         float y = random(vec2(0.0, Time) * 0.2) * 1.0;
 
         mat4 jitter_proj = proj;
-        if (ShouldJitter == 1)
+       // if (ShouldJitter == 1)
         {
             jitter_proj[2][0] = (x * 2.0 - 1.0) / WindowSize.x;
             jitter_proj[2][1] = (y * 2.0 - 1.0) / WindowSize.y;
@@ -489,10 +489,10 @@ var basePassFragmentShaderSource =
     void main() 
     {        
         vec3 rayjitter = vec3(0.0);
-        //if (ShouldJitter == 1)
-        //{
-        //    rayjitter = vec3(random(-1.0, 1.0), random(-1.0, 1.0), 0.0) * 0.0001;
-        //}
+        if (ShouldJitter == 1)
+        {
+            rayjitter = vec3(random(-1.0, 1.0, 0.01), random(-1.0, 1.0, 0.02), 0.0) * 0.0001;
+        }
 
         vec2 screenUV = gl_FragCoord.xy / vec2(WindowSize.xy);
 
@@ -551,7 +551,7 @@ var basePassFragmentShaderSource =
                         Ray BounceRay;
                         BounceRay.origin = primaryHit.position.xyz + primaryHit.normal.xyz * 0.001;
                         BounceRay.direction = normalize(primaryHit.normal.xyz + randomDirection()).xyz;
-                        Hit BounceHit = IntersectVoxelsLinear(BounceRay, 4.0, 100.0, 8);
+                        Hit BounceHit = IntersectVoxelsLinear(BounceRay, 0.0, 100.0, 8);
                         if (BounceHit.t < BIG_NUMBER)
                         {
                             out_color.xyz += BounceHit.colour;
