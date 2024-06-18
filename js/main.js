@@ -134,7 +134,7 @@
     function BuildScene()
     {
         NVoxels = 0
-        VolumeSize = [300.0, 64.0, 300.0]
+        VolumeSize = [512.0, 128.0, 512.0]
         VoxelTextureData = new Uint8Array(VolumeSize[0] * VolumeSize[1] * VolumeSize[2]);
         for (var z = 0; z < VolumeSize[2]; ++z) 
         {
@@ -142,10 +142,11 @@
             {
                 for (var x = 0; x < VolumeSize[0]; ++x) 
                 {
-                    var n1 = noise(x * 0.01, y * 0.01, z * 0.01) * (VolumeSize[1] * 0.85)
-                    var n2 = noise(x * 0.08, z * 0.08, 0.0) * VolumeSize[1] * 0.15
+                    var n1 = noise(x * 0.015234, y * 0.011354, z * 0.053421) * (VolumeSize[1] * 0.85523)
+                    var n2 = noise(x * 0.0652348, z * 0.086542, 0.0) * (VolumeSize[1] * 0.155234)
+                    var n3 = noise(x * 0.5243, y * 0.124532, z * 0.6523421) *(VolumeSize[1] * 0.6345)
 
-                    let height = (Math.max(n1 + n2, 6.0));
+                    let height = (Math.max(n1 + n2 + n3, 6.0));
                    // height = Math.max()
                     //let height = VolumeSize[1] * 0.5
                     if (y < height)
@@ -516,11 +517,7 @@
 
     function PollInput() 
     {      
-        var speed = 0.04
-        if (ShiftPressed)
-        {
-            speed = 0.01;
-        }
+        var speed = 10.0
 
         var CameraForwardXZ = [
             View.CameraForward[0],
@@ -578,9 +575,9 @@
         //SpacePressed = false;
 
         CameraPosition = addv(CameraPosition, CameraVelocity)
-        CameraVelocity = addv(CameraVelocity, CameraAcceleration)
-        CameraVelocity = multiplys(CameraVelocity, 0.9)
-        CameraAcceleration = multiplys(CameraAcceleration, 0.9)
+    //    CameraVelocity = addv(CameraVelocity, CameraAcceleration)
+        CameraVelocity = multiplys(CameraVelocity, 0.99)
+    //    CameraAcceleration = multiplys(CameraAcceleration, 0.99)
 
         //// SCREEN SHAKE
         //CameraAngularVelocity[0] += Math.sin(frameID * 0.05) * 0.000025
@@ -618,18 +615,18 @@
     {
         if (!event.repeat)
         {
-            if      (event.key == 'a') APressed = !APressed
-            else if (event.key == 'd') DPressed = !DPressed
-            else if (event.key == 's') SPressed = !SPressed
-            else if (event.key == 'w') WPressed = !WPressed
+            if      (event.key == 'a' || event.key == 'A') APressed = !APressed
+            else if (event.key == 'd' || event.key == 'D') DPressed = !DPressed
+            else if (event.key == 's' || event.key == 'S') SPressed = !SPressed
+            else if (event.key == 'w' || event.key == 'W') WPressed = !WPressed
             else if (event.key == 'ArrowLeft')  LeftArrowPressed  = !LeftArrowPressed
             else if (event.key == 'ArrowRight') RightArrowPressed = !RightArrowPressed
             else if (event.key == 'ArrowUp')    UpArrowPressed    = !UpArrowPressed
             else if (event.key == 'ArrowDown')  DownArrowPressed  = !DownArrowPressed
             else if (event.key == 'Shift') ShiftPressed = !ShiftPressed;
             else if (event.key == ' ') SpacePressed = !SpacePressed;
-            else if (event.key == 'e') EPressed = !EPressed
-            else if (event.key == 'q') QPressed = !QPressed
+            else if (event.key == 'e' || event.key == 'E') EPressed = !EPressed
+            else if (event.key == 'q' || event.key == 'Q') QPressed = !QPressed
         }
 
     }

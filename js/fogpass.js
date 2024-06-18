@@ -22,7 +22,7 @@ class FogPass
         #define FOG_DISTANCE 60.0
 
         #define  FogColor    0.3
-        #define  FogDistance 120.0
+        #define  FogDistance 256.0
         #define  FogFalloff  0.90
         #define  FogMax      1.0
 
