@@ -17,16 +17,25 @@ class FogPass
         precision lowp float;
         uniform sampler2D SceneTexture;
         uniform sampler2D PositionTexture;
+        
         #define FOG_COLOUR vec4(0.3, 0.3, 0.3, 1.0)
         #define FOG_DISTANCE 60.0
+
+        #define  FogColor    0.3
+        #define  FogDistance 120.0
+        #define  FogFalloff  0.90
+        #define  FogMax      1.0
+
         in vec2 frag_uvs;
         out vec4 out_colour;
         void main()
         {
             vec4 Scene = texture(SceneTexture, frag_uvs);
-            float t = texture(PositionTexture, frag_uvs).w;
-            float f = clamp(0.0, FOG_DISTANCE, t) / FOG_DISTANCE;
-            out_colour = mix(Scene, FOG_COLOUR, min(f, 0.96));
+            vec4 Position = texture(PositionTexture, frag_uvs);
+            float fog = (Position.w > 0.0) ? Position.w : FogDistance;
+            fog = clamp(0.0, FogDistance, fog) / FogDistance;
+            fog = min(pow(fog, FogFalloff), FogMax);
+            out_colour = mix(Scene, FOG_COLOUR, clamp(fog, 0.0, 1.0));
         }`
 
     constructor (context, width, height)

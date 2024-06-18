@@ -516,10 +516,10 @@
 
     function PollInput() 
     {      
-        var speed = 0.0125
+        var speed = 0.04
         if (ShiftPressed)
         {
-            speed = 0.02;
+            speed = 0.01;
         }
 
         var CameraForwardXZ = [
