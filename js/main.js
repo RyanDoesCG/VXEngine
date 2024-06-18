@@ -143,10 +143,10 @@
                 for (var x = 0; x < VolumeSize[0]; ++x) 
                 {
                     var n1 = noise(x * 0.015234, y * 0.011354, z * 0.053421) * (VolumeSize[1] * 0.85523)
-                    var n2 = noise(x * 0.0652348, z * 0.086542, 0.0) * (VolumeSize[1] * 0.155234)
-                    var n3 = noise(x * 0.5243, y * 0.124532, z * 0.6523421) *(VolumeSize[1] * 0.6345)
+                    var n2 = noise(x * 0.0652348, z * 0.016542, 0.0) * (VolumeSize[1] * 0.155234)
+                    var n3 = noise(x * 0.5243, z * 0.124532, 0.0) *(VolumeSize[1] * 0.6345) * 0.001
 
-                    let height = (Math.max(n1 + n2 + n3, 6.0));
+                    let height = (Math.max(n1 + n2, 6.0));
                    // height = Math.max()
                     //let height = VolumeSize[1] * 0.5
                     if (y < height)
@@ -517,7 +517,7 @@
 
     function PollInput() 
     {      
-        var speed = 10.0
+        var speed = 0.01
 
         var CameraForwardXZ = [
             View.CameraForward[0],
@@ -575,9 +575,9 @@
         //SpacePressed = false;
 
         CameraPosition = addv(CameraPosition, CameraVelocity)
-    //    CameraVelocity = addv(CameraVelocity, CameraAcceleration)
-        CameraVelocity = multiplys(CameraVelocity, 0.99)
-    //    CameraAcceleration = multiplys(CameraAcceleration, 0.99)
+        CameraVelocity = addv(CameraVelocity, CameraAcceleration)
+        CameraVelocity = multiplys(CameraVelocity, 0.9)
+        CameraAcceleration = multiplys(CameraAcceleration, 0.99)
 
         //// SCREEN SHAKE
         //CameraAngularVelocity[0] += Math.sin(frameID * 0.05) * 0.000025
