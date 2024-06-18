@@ -151,6 +151,11 @@
                     var n2 = noise(x * 0.0652348, z * 0.016542, 0.0) * (VolumeSize[1] * 0.155234)
                     var n3 = noise(x * 0.5243, z * 0.124532, 0.0) *(VolumeSize[1] * 0.6345) * 0.001
 
+                    //var n1 = noise(x * 0.0015234, y *  0.011354, z * Math.random() * 0.0053421) * (VolumeSize[1] * Math.random() *  0.85523)
+                    //var n2 = noise(x * 0.00652348, z * 0.016542, 0.0) * (VolumeSize[1] * Math.random() * 0.0155234)
+                    //var n3 = noise(x *0.05243, z  * 0.0124532, 0.0) *(VolumeSize[1] * Math.random() * 0.06345) * 0.001
+
+
                     let height = (Math.max(n1 + n2, 6.0));
                    // height = Math.max()
                     //let height = VolumeSize[1] * 0.5
@@ -220,6 +225,43 @@
                     new Uint8Array([ 0 ]));
             }  
         }
+
+        if (LPressed)
+            {
+                IntersectionVoxelIndex = IntersectVolume(
+                    VolumeSize,
+                    VolumePosition,
+                    VoxelTextureData,
+                    CameraPosition,
+                    View.CameraForward
+                )
+        
+                if (IntersectionVoxelIndex[0] != -1)
+                {
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_3D, VoxelTexture);
+                
+                    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_BASE_LEVEL, 0);
+                    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAX_LEVEL, 0);
+                    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);        
+        
+                    VoxelTextureData[IntersectionVoxelIndex[0] + IntersectionVoxelIndex[1]  * VolumeSize[0] + IntersectionVoxelIndex[2] * VolumeSize[2] * VolumeSize[1]] = 0;
+                    NVoxels--;
+                    gl.texSubImage3D(
+                        gl.TEXTURE_3D,
+                        0, 
+                        IntersectionVoxelIndex[0], 
+                        IntersectionVoxelIndex[1], 
+                        IntersectionVoxelIndex[2], 
+                        1, 
+                        1, 
+                        1, 
+                        gl.RED, 
+                        gl.UNSIGNED_BYTE, 
+                        new Uint8Array([ 51 ]));
+                }  
+            }
 
     }
     
@@ -517,6 +559,7 @@
     var ShiftPressed = false;
 
     var SpacePressed = false;
+    var LPressed = false;
 
     var LightOn = false;
 
@@ -624,6 +667,7 @@
             else if (event.key == 'd' || event.key == 'D') DPressed = !DPressed
             else if (event.key == 's' || event.key == 'S') SPressed = !SPressed
             else if (event.key == 'w' || event.key == 'W') WPressed = !WPressed
+            else if (event.key == 'l' || event.key == "L") LPressed = !LPressed
             else if (event.key == 'ArrowLeft')  LeftArrowPressed  = !LeftArrowPressed
             else if (event.key == 'ArrowRight') RightArrowPressed = !RightArrowPressed
             else if (event.key == 'ArrowUp')    UpArrowPressed    = !UpArrowPressed
