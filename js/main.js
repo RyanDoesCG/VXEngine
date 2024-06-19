@@ -27,8 +27,8 @@
         createShader  (gl, gl.VERTEX_SHADER,   basePassVertexShaderSource), 
         createShader  (gl, gl.FRAGMENT_SHADER, basePassFragmentShaderSource));
 
-    const MAX_BUFFER_WIDTH = 1024
-    const MAX_BUFFER_HEIGHT = 1024
+    const MAX_BUFFER_WIDTH = 1080
+    const MAX_BUFFER_HEIGHT = 1080
     canvas.width = Math.min(canvas.clientWidth, MAX_BUFFER_WIDTH)
     canvas.height = Math.min(canvas.clientHeight, MAX_BUFFER_HEIGHT)
 
@@ -58,11 +58,16 @@
             canvas.height, 
             gl.RGBA32F, gl.FLOAT)
 
+    var basePassFrameBuffers = [NumHistorySamples]
+    for (var i = 0; i < NumHistorySamples; ++i)
+        basePassFrameBuffers[i] = createFramebuffer(gl, 
+            LightingBuffers[i], 
+            WorldPositionBuffers[i], 
+            bloomBuffer)
+
     var ViewTransforms = [NumHistorySamples]
     for (var i = 0; i < NumHistorySamples; ++i)
         ViewTransforms[i] = identity()
-
-    var basePassFrameBuffer
 
     // TEXTURES
     var WhiteNoiseTexture = loadTexture(gl, 'images/noise/white.png')
@@ -83,6 +88,7 @@
     var basePassTimeUniform = gl.getUniformLocation(basePassShaderProgram, "Time")
     var basePassAmbientOcclusionUniform = gl.getUniformLocation(basePassShaderProgram, "ShouldAmbientOcclusion")
     var basePassJitterUniform = gl.getUniformLocation(basePassShaderProgram, "ShouldJitter")
+    var basePassFogUniform = gl.getUniformLocation(basePassShaderProgram, "ShouldFog")
     var basePassCameraPositionUniform = gl.getUniformLocation(basePassShaderProgram, "CameraPosition")
     var basePassVolumePositionUniform = gl.getUniformLocation(basePassShaderProgram, "VolumePosition")
     var basePassVolumeSizeUniform = gl.getUniformLocation(basePassShaderProgram, "VolumeSize")
@@ -270,7 +276,7 @@
     var CameraVelocity = vec4(0.0, 0.0, 0.0, 0.0)
     var CameraAcceleration = vec4(0.0, 0.0, 0.0, 0.0)
 
-    var CameraRotation = new Float32Array([0.0, 0.0, 0.0])
+    var CameraRotation = new Float32Array([0.3, -4.4, -0.8])
     var CameraAngularVelocity = new Float32Array([0.0, 0.0, 0.0])
 
     var LastCameraPosition = CameraPosition
@@ -326,6 +332,9 @@
         var LastBuffer = LightingBuffers.pop();
         LightingBuffers.unshift(LastBuffer);
 
+        var LastFrameBuffer = basePassFrameBuffers.pop();
+        basePassFrameBuffers.unshift(LastFrameBuffer);
+
         var LastWorldBuffer = WorldPositionBuffers.pop();
         WorldPositionBuffers.unshift(LastWorldBuffer)
     }
@@ -336,8 +345,8 @@
 
         if (TAA.checked || Bloom.checked || DoF.checked || Fog.checked)
         {
-            basePassFrameBuffer = createFramebuffer(gl, LightingBuffers[0], WorldPositionBuffers[0], bloomBuffer)
-            gl.bindFramebuffer(gl.FRAMEBUFFER, basePassFrameBuffer);
+            //basePassFrameBuffer = createFramebuffer(gl, LightingBuffers[0], WorldPositionBuffers[0], bloomBuffer)
+            gl.bindFramebuffer(gl.FRAMEBUFFER, basePassFrameBuffers[0]);
             gl.drawBuffers([
                 gl.COLOR_ATTACHMENT0, 
                 gl.COLOR_ATTACHMENT1,
@@ -387,6 +396,7 @@
         gl.uniformMatrix4fv(basePassViewMatrixLocation, false, View.WorldToViewMatrix)
         gl.uniform1i(basePassAmbientOcclusionUniform, AO.checked ? 1 : 0)
         gl.uniform1i(basePassJitterUniform, TAA.checked ? 1 : 0);
+        gl.uniform1i(basePassFogUniform, Fog.checked ? 1 : 0);
         gl.uniform4fv(basePassCameraPositionUniform, CameraPosition)
         gl.uniform3fv(basePassVolumePositionUniform, VolumePosition)
         gl.uniform3fv(basePassVolumeSizeUniform, VolumeSize)
@@ -448,6 +458,7 @@
             LastBuffer = DepthOfFieldRenderPass.output
         }
 
+        /*
         if (Fog.checked)
         {
             FogRenderPass.Render(
@@ -457,6 +468,7 @@
                 Bloom.checked?false:true)
             LastBuffer = FogRenderPass.output
         }
+        */
 
         if (Bloom.checked)
         {
@@ -523,9 +535,9 @@
             CameraPosition[2].toFixed(1) + "</p>"
         
         ui.innerHTML += "<p>" + 
-            View.CameraForward[0].toFixed(1) + ", " + 
-            View.CameraForward[1].toFixed(1) + ", " + 
-            View.CameraForward[2].toFixed(1) + "</p>"
+            CameraRotation[0].toFixed(1) + ", " + 
+            CameraRotation[1].toFixed(1) + ", " + 
+            CameraRotation[2].toFixed(1) + "</p>"
 
         ui.innerHTML +="<p>" + NVoxels.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " boxes in scene </p>";
 
@@ -565,7 +577,11 @@
 
     function PollInput() 
     {      
-        var speed = 0.01
+        var speed = 0.1
+        if (ShiftPressed)
+        {
+            speed = 0.04
+        }
 
         var CameraForwardXZ = [
             View.CameraForward[0],
@@ -690,7 +706,7 @@
         if (event.key == 'r')
         {
            CameraPosition = vec4(0.0, 0.0, 0.0, 0.0);
-           CameraRotation = new Float32Array([0.0,0.0,0.0]);
+           CameraRotation = new Float32Array([0.3, -4.4, -0.8])
            LightOn = false;
 
             // CameraPosition = vec4(31.0, -14.0, 31.0, 0.0);

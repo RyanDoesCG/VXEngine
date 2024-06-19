@@ -80,9 +80,19 @@ var basePassFragmentShaderSource =
     uniform vec3      VolumeSize;
     uniform ivec3     SelectedVoxel;
 
+    uniform int ShouldFog;
+
     layout(location = 0) out vec4 out_color;
     layout(location = 1) out vec4 out_worldpos;
     layout(location = 2) out vec4 out_bloom;
+
+    #define FOG_COLOUR vec4(0.3, 0.3, 0.3, 1.0)
+    #define FOG_DISTANCE 60.0
+
+    #define FogColor    0.3
+    #define FogDistance 256.0
+    #define FogFalloff  2.0
+    #define FogMax      0.95
 
     //
     // on intel processors you can use the += line to increment 
@@ -573,6 +583,14 @@ var basePassFragmentShaderSource =
         else
         {
             out_worldpos = vec4(primaryRay.origin + primaryRay.direction * BIG_NUMBER, BIG_NUMBER);
+        }
+
+        if (ShouldFog == 1)
+        {
+            float fog = (out_worldpos.w > 0.0) ? out_worldpos.w : FogDistance;
+            fog = clamp(0.0, FogDistance, fog) / FogDistance;
+            fog = min(pow(fog, FogFalloff), FogMax);
+            out_color = mix(out_color, FOG_COLOUR, clamp(fog, 0.0, 1.0));
         }
 
         float gamma = 2.2;

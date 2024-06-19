@@ -139,7 +139,7 @@ class TAAPass
 
                 out_color = vec4(Result.xyz * 0.0666, 1.0);
         
-                if (out_color.x > 0.5 || out_color.y > 0.5 || out_color.z > 0.5)
+                if (out_color.x > 0.9 || out_color.y > 0.9 || out_color.z > 0.9)
                 {
                     out_bloom = out_color;
                 }
