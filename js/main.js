@@ -154,8 +154,8 @@
                 for (var x = 0; x < VolumeSize[0]; ++x) 
                 {
                     var n1 = noise(x * 0.015234, y * 0.011354, z * 0.053421) * (VolumeSize[1] * 0.85523)
-                    var n2 = noise(x * 0.0652348, z * 0.016542, 0.0) * (VolumeSize[1] * 0.155234)
-                    var n3 = noise(x * 0.5243, z * 0.124532, 0.0) *(VolumeSize[1] * 0.6345) * 0.001
+                    var n2 = noise(x * 0.012348, z * 0.016542, 0.0) * (VolumeSize[1] * 0.155234)
+                    var n3 = noise(x * 0.1443, z * 0.124532, 0.0) *(VolumeSize[1] * 0.6345) * 0.001
 
                     //var n1 = noise(x * 0.0015234, y *  0.011354, z * Math.random() * 0.0053421) * (VolumeSize[1] * Math.random() *  0.85523)
                     //var n2 = noise(x * 0.00652348, z * 0.016542, 0.0) * (VolumeSize[1] * Math.random() * 0.0155234)
@@ -357,7 +357,15 @@
             gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         }
 
-        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        if (Fog.checked)
+        {
+            gl.clearColor(0.565, 0.565, 0.565, 0.0);
+        }
+        else
+        {
+            gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        }
+
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.clear(gl.DEPTH_BUFFER_BIT)
 
